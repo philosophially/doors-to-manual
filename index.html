@@ -49,7 +49,7 @@
 
       /* HUD bars — DOM elements, sit above/below canvas */
       .hud {
-        width: 1024px;
+        width: 800px;
         background: #1b2a4a;
         font-size: 11px;
         color: #fff;
@@ -111,52 +111,53 @@
     </div>
     <script>
       // =============================================================================
-      // DOORS TO MANUAL — Step 1: Static Cabin Scene (Phaser.js 3)
-      // Engine: Phaser 3 | Canvas: 1024x500 | Landscape
+      // DOORS TO MANUAL — Cabin Scene (Phaser.js 3)
+      // Engine: Phaser 3 | Canvas: 800×(grid + thin margin) | Portrait
       // =============================================================================
 
       // ---------------------------------------------------------------------------
       // CONSTANTS — grid geometry (matches vanilla JS version for continuity)
       // ---------------------------------------------------------------------------
-      const CW = 1024,
-        CH = 500;
-      const TILE = 40;
+      const CW = 800;
+      const TILE = 48;
 
-      // Grid: 20 cols × 10 rows = 640×320px, centred in 1024×500
-      const GRID_COLS = 20,
-        GRID_ROWS = 10;
-      const GRID_W = GRID_COLS * TILE; // 640
-      const GRID_H = GRID_ROWS * TILE; // 320
-      const OX = Math.floor((CW - GRID_W) / 2); // 192
-      const OY = Math.floor((CH - GRID_H) / 2); // 90
+      // Grid: 9 cols × 12 rows = 432×576px
+      // Layout: 3 left seats | 1 aisle | 3 right seats | 2 fuselage walls
+      const GRID_COLS = 9,
+        GRID_ROWS = 12;
+      const GRID_W = GRID_COLS * TILE; // 432
+      const GRID_H = GRID_ROWS * TILE; // 576
+      // Snug canvas height — only a small margin above/below the grid (avoids large black bands in-canvas)
+      const CANVAS_V_MARGIN = 8;
+      const CH = GRID_H + CANVAS_V_MARGIN * 2;
+      const OX = Math.floor((CW - GRID_W) / 2);
+      const OY = CANVAS_V_MARGIN;
 
-      // Tile row indices
+      // Tile row indices (top → bottom)
       const TR = {
-        fuseTop: 0,
-        seatA: 1,
-        seatB: 2,
-        seatC: 3,
-        aisleTop: 4,
-        aisleBot: 5,
-        seatD: 6,
-        seatE: 7,
-        seatF: 8,
-        fuseBot: 9,
+        fuseTop: 0, // fuselage top wall
+        galley: 1, // galley zone (TOP — player spawns here)
+        cabin: 2, // first cabin row (row 1); rows 2–8 follow sequentially
+        cockpit: 10, // cockpit door (BOTTOM)
+        fuseBot: 11, // fuselage bottom wall
       };
 
-      // Tile col indices
+      // Tile col indices (left → right)
       const TC = {
-        cockpitStart: 0,
-        cockpitEnd: 1,
-        cabinStart: 2,
-        cabinEnd: 15,
-        galleyStart: 16,
-        galleyEnd: 19,
+        fuseLeft: 0, // fuselage left wall
+        seatA: 1, // left window seat
+        seatB: 2, // left middle seat
+        seatC: 3, // left aisle seat
+        aisle: 4, // centre aisle
+        seatD: 5, // right aisle seat
+        seatE: 6, // right middle seat
+        seatF: 7, // right window seat
+        fuseRight: 8, // fuselage right wall
       };
 
-      const CABIN_COLS = TC.cabinEnd - TC.cabinStart + 1; // 14
-      const SEAT_ROWS_TOP = [TR.seatA, TR.seatB, TR.seatC];
-      const SEAT_ROWS_BOT = [TR.seatD, TR.seatE, TR.seatF];
+      const SEAT_COLS_LEFT = [TC.seatA, TC.seatB, TC.seatC];
+      const SEAT_COLS_RIGHT = [TC.seatD, TC.seatE, TC.seatF];
+      const CABIN_ROWS = 8; // rows 1 through 8
 
       // ---------------------------------------------------------------------------
       // COLOURS
@@ -202,10 +203,10 @@
       }
 
       // ---------------------------------------------------------------------------
-      // PASSENGER MAP — random 3-5 occupied seats per cabin column
+      // PASSENGER MAP — random 3–5 occupied seats per cabin row
       // ---------------------------------------------------------------------------
       const paxMap = {};
-      for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+      for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
         const total = ri(3, 5);
         const indices = [0, 1, 2, 3, 4, 5];
         for (let i = 5; i > 0; i--) {
@@ -213,7 +214,7 @@
           [indices[i], indices[j]] = [indices[j], indices[i]];
         }
         const occupied = new Set(indices.slice(0, total));
-        paxMap[c] = Array.from({ length: 6 }, (_, s) => ({
+        paxMap[rowNum] = Array.from({ length: 6 }, (_, s) => ({
           occ: occupied.has(s),
           v: ri(0, 3),
         }));
@@ -249,30 +250,42 @@
         create() {
           this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
 
-          // Title block (upper area)
+          // Shared vertical rhythm: same gap above boxes (under subtitle) and below labels (above hint)
+          const rowGap = 20;
+
+          // Title block — positions scale with canvas height (CH matches cabin scene)
+          const title1Y = Math.round(CH * 0.14);
+          const title2Y = title1Y + 44;
           this.add
-            .text(CW / 2, 95, "DOORS TO MANUAL", {
+            .text(CW / 2, title1Y, "DOORS TO MANUAL", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "18px",
+              fontSize: "20px",
               color: "#00FF7F",
             })
             .setOrigin(0.5);
           this.add
-            .text(CW / 2, 128, "SELECT YOUR CREW", {
+            .text(CW / 2, title2Y, "SELECT YOUR CREW", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "10px",
+              fontSize: "13px",
               color: "#FFFFFF",
+              stroke: "#000000",
+              strokeThickness: 3,
             })
             .setOrigin(0.5);
 
-          // Option layout: two 80×120 boxes, 120px gap between outer edges
-          const boxW = 80;
-          const boxH = 120;
-          const gap = 120;
+          // Subtitle uses default origin (0.5, 0.5): bottom edge ≈ centre + half line height
+          const subtitleLineHalf = 14;
+          const subtitleBottom = title2Y + subtitleLineHalf;
+
+          // Option layout: larger boxes + crew previews for the taller portrait canvas
+          const boxW = 108;
+          const boxH = 152;
+          const gap = 96;
           const totalW = boxW + gap + boxW;
           const leftCx = CW / 2 - totalW / 2 + boxW / 2;
           const rightCx = CW / 2 + totalW / 2 - boxW / 2;
-          const boxTopY = 128 + 10 + 40;
+          const boxTopY = subtitleBottom + rowGap * 2;
+          const crewPreviewSize = Math.min(96, boxH - 28);
 
           let selected = "female"; // default highlight (matches green border)
 
@@ -300,23 +313,27 @@
 
           const leftSprite = this.add
             .image(leftCx, boxTopY + boxH / 2, "female-crew-south")
-            .setDisplaySize(48, 48);
+            .setDisplaySize(crewPreviewSize, crewPreviewSize);
           const rightSprite = this.add
             .image(rightCx, boxTopY + boxH / 2, "male-crew-south")
-            .setDisplaySize(48, 48);
+            .setDisplaySize(crewPreviewSize, crewPreviewSize);
 
           this.add
-            .text(leftCx, boxTopY + boxH + 10, "FEMALE", {
+            .text(leftCx, boxTopY + boxH + 12, "FEMALE", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "7px",
+              fontSize: "11px",
               color: "#FFFFFF",
+              stroke: "#000000",
+              strokeThickness: 3,
             })
             .setOrigin(0.5, 0);
           this.add
-            .text(rightCx, boxTopY + boxH + 10, "MALE", {
+            .text(rightCx, boxTopY + boxH + 12, "MALE", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "7px",
+              fontSize: "11px",
               color: "#FFFFFF",
+              stroke: "#000000",
+              strokeThickness: 3,
             })
             .setOrigin(0.5, 0);
 
@@ -327,7 +344,7 @@
                 cx,
                 boxTopY + boxH / 2,
                 boxW + hitPad * 2,
-                boxH + 40 + hitPad,
+                boxH + 52 + hitPad,
               )
               .setOrigin(0.5, 0.5)
               .setInteractive({ useHandCursor: true });
@@ -344,13 +361,20 @@
           makeZone(leftCx, "female");
           makeZone(rightCx, "male");
 
+          // “CLICK TO START” — same size as subtitle; gap under FEMALE/MALE = rowGap * 2 (matches subtitle→boxes)
+          const labelTopY = boxTopY + boxH + 12;
+          const labelApproxH = 18; // ~11px PS2P line + stroke
+          const hintTopY = labelTopY + labelApproxH + rowGap * 2;
+
           const hint = this.add
-            .text(CW / 2, 460, "CLICK TO SELECT", {
+            .text(CW / 2, hintTopY, "CLICK TO START", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "6px",
-              color: "#888888",
+              fontSize: "13px",
+              color: "#bbbbbb",
+              stroke: "#222222",
+              strokeThickness: 2,
             })
-            .setOrigin(0.5);
+            .setOrigin(0.5, 0);
           this.tweens.add({
             targets: hint,
             alpha: { from: 1, to: 0.35 },
@@ -485,212 +509,225 @@
           this.add.rectangle(CW / 2, CH / 2, CW, CH, C.bg);
 
           this.drawFuselage();
+          this.drawGalley();
           this.drawCabin();
           this.drawCockpit();
-          this.drawGalley();
-          this.drawPassengers();
           this.drawCrew();
           this.drawLabels();
           this.drawAisleArrow();
         }
 
         // ---------------------------------------------------------------------------
-        // FUSELAGE — top and bottom hull wall bands + portholes
+        // FUSELAGE — left/right walls + top/bottom bands + portholes
         // ---------------------------------------------------------------------------
         drawFuselage() {
-          // Top wall
+          // Left + right fuselage walls for all rows
+          for (let r = 0; r < GRID_ROWS; r++) {
+            this.add.image(
+              tx(TC.fuseLeft) + TILE / 2,
+              ty(r) + TILE / 2,
+              "fuse_wall",
+            );
+            this.add.image(
+              tx(TC.fuseRight) + TILE / 2,
+              ty(r) + TILE / 2,
+              "fuse_wall",
+            );
+          }
+
+          // Top + bottom fuselage walls across full width
           for (let c = 0; c < GRID_COLS; c++) {
             this.add.image(
               tx(c) + TILE / 2,
               ty(TR.fuseTop) + TILE / 2,
               "fuse_wall",
             );
-          }
-          // Bottom wall (flipped vertically)
-          for (let c = 0; c < GRID_COLS; c++) {
             this.add
               .image(tx(c) + TILE / 2, ty(TR.fuseBot) + TILE / 2, "fuse_wall")
               .setFlipY(true);
           }
 
-          // Portholes — one per cabin column, top and bottom
-          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
-            const px = tx(c) + TILE / 2;
-            this.add.image(px, ty(TR.fuseTop) + TILE / 2, "porthole");
-            this.add.image(px, ty(TR.fuseBot) + TILE / 2, "porthole");
+          // Portholes — one per cabin row, on both left and right walls
+          for (let r = 0; r < CABIN_ROWS; r++) {
+            const tileRow = TR.cabin + r;
+            const py = ty(tileRow) + TILE / 2;
+            this.add.image(tx(TC.fuseLeft) + TILE / 2, py, "porthole");
+            this.add.image(tx(TC.fuseRight) + TILE / 2, py, "porthole");
           }
         }
 
         // ---------------------------------------------------------------------------
-        // CABIN INTERIOR — floors, seats, aisle
+        // CABIN — seats + aisle + passengers (rows 1–8)
         // ---------------------------------------------------------------------------
         drawCabin() {
-          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
-          const aisleRows = [TR.aisleTop, TR.aisleBot];
+          const seatBg = this.add.graphics();
+          seatBg.fillStyle(0x03165c, 1);
 
-          // Seat tiles (empty seats only — occupied seats show PNG with seat baked in)
-          // and aisle tiles for each cabin column
-          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
-            allSeatRows.forEach((r, seatIdx) => {
-              if (paxMap[c][seatIdx].occ) return;
-              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "seat_tile");
+          const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
+
+          for (let r = 0; r < CABIN_ROWS; r++) {
+            const tileRow = TR.cabin + r;
+            const rowNum = r + 1; // paxMap keys are 1–8
+
+            // Aisle tile (always)
+            this.add.image(
+              tx(TC.aisle) + TILE / 2,
+              ty(tileRow) + TILE / 2,
+              "aisle_tile",
+            );
+
+            // Seats A–F (0–5) across left then right
+            seatCols.forEach((col, seatIdx) => {
+              const cx = tx(col) + TILE / 2;
+              const cy = ty(tileRow) + TILE / 2;
+              const seat = paxMap[rowNum][seatIdx];
+
+              if (seat.occ) {
+                // Occupied seat: draw background + pax sprite (seat baked into PNG)
+                seatBg.fillRect(
+                  tx(col) + 2,
+                  ty(tileRow) + 2,
+                  TILE - 4,
+                  TILE - 4,
+                );
+                this.add
+                  .image(cx, cy, `pax-${seat.v}-south`)
+                  .setDisplaySize(TILE - 8, TILE - 8);
+              } else {
+                // Empty seat: draw seat tile as before
+                this.add.image(cx, cy, "seat_tile");
+              }
             });
-            for (const r of aisleRows) {
-              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "aisle_tile");
-            }
-          }
-
-          // Column dividers — between cabin columns
-          for (let c = TC.cabinStart + 1; c <= TC.cabinEnd; c++) {
-            // Top seat block
-            this.add
-              .image(tx(c), ty(TR.seatA) + TILE * 1.5, "col_divider")
-              .setOrigin(0, 0.5);
-            // Bottom seat block
-            this.add
-              .image(tx(c), ty(TR.seatD) + TILE * 1.5, "col_divider")
-              .setOrigin(0, 0.5);
           }
         }
 
         // ---------------------------------------------------------------------------
-        // COCKPIT — left 2 columns
+        // COCKPIT — bottom row (TR.cockpit)
         // ---------------------------------------------------------------------------
         drawCockpit() {
-          // Fill all cockpit tiles
-          for (let c = TC.cockpitStart; c <= TC.cockpitEnd; c++) {
-            for (let r = 0; r < GRID_ROWS; r++) {
-              this.add.image(
-                tx(c) + TILE / 2,
-                ty(r) + TILE / 2,
-                "cockpit_fill",
-              );
-            }
+          // Fill cockpit row across cols 1–7
+          for (let c = TC.seatA; c <= TC.seatF; c++) {
+            this.add.image(
+              tx(c) + TILE / 2,
+              ty(TR.cockpit) + TILE / 2,
+              "cockpit_fill",
+            );
           }
 
-          // Door panel (Graphics — drawn over tiles)
+          // Door panel (Graphics — drawn over tiles in the cockpit row)
           const g = this.add.graphics();
-          const x0 = tx(TC.cockpitStart);
-          const w = 2 * TILE;
-          const dy = ty(TR.aisleTop) - TILE;
-          const dh = 4 * TILE;
+          const x0 = tx(TC.seatA);
+          const y0 = ty(TR.cockpit);
+          const w = (TC.seatF - TC.seatA + 1) * TILE;
+          const h = TILE;
+
+          // Outer frame (reads as a thicker door surround in one tile)
+          g.lineStyle(2, 0x2a4068, 1);
+          g.strokeRect(x0 + 2, y0 + 2, w - 4, h - 4);
 
           g.fillStyle(0x1b2a4a);
-          g.fillRect(x0 + 4, dy + 4, w - 8, dh - 8);
+          g.fillRect(x0 + 5, y0 + 5, w - 10, h - 10);
 
           g.lineStyle(1.5, 0x0a1020);
-          g.strokeRect(x0 + 6, dy + 6, w - 12, dh - 12);
+          g.strokeRect(x0 + 7, y0 + 7, w - 14, h - 14);
 
           // Centre seam
           g.lineStyle(1.5, 0x0a1020);
           g.beginPath();
-          g.moveTo(x0 + w / 2, dy + 8);
-          g.lineTo(x0 + w / 2, dy + dh - 8);
+          g.moveTo(x0 + w / 2, y0 + 9);
+          g.lineTo(x0 + w / 2, y0 + h - 9);
           g.strokePath();
 
           // Handle
           g.fillStyle(0x3a5080);
-          g.fillRect(x0 + w - 12, dy + dh / 2 - 5, 5, 10);
+          g.fillRect(x0 + w - 15, y0 + h / 2 - 5, 6, 10);
 
           // Portholes on cockpit door
+          const doorCx = x0 + w / 2;
+          const doorCy = y0 + h / 2;
           this.add
-            .image(x0 + w / 2, ty(TR.seatB) + TILE / 2, "porthole")
-            .setScale(0.85);
+            .image(doorCx - 26, doorCy, "porthole")
+            .setScale(1);
           this.add
-            .image(x0 + w / 2, ty(TR.seatE) + TILE / 2, "porthole")
-            .setScale(0.85);
+            .image(doorCx + 26, doorCy, "porthole")
+            .setScale(1);
 
-          // COCKPIT label (rotated text)
+          // COCKPIT label — larger + stroke so it reads on dark blue
           this.add
-            .text(x0 + w / 2, ty(0) + GRID_H / 2, "COCKPIT", {
+            .text(x0 + w / 2, y0 + h / 2 + 1, "COCKPIT", {
               fontFamily: '"Press Start 2P"',
-              fontSize: "5px",
-              color: "#3a5080",
+              fontSize: "7px",
+              color: "#c8e6ff",
+              stroke: "#0a1020",
+              strokeThickness: 3,
             })
-            .setOrigin(0.5)
-            .setAngle(-90);
+            .setOrigin(0.5, 0.5);
         }
 
         // ---------------------------------------------------------------------------
-        // GALLEY — right zone columns
+        // GALLEY — top row (TR.galley)
         // ---------------------------------------------------------------------------
         drawGalley() {
-          // Fill all galley tiles
-          for (let c = TC.galleyStart; c <= TC.galleyEnd; c++) {
-            for (let r = 0; r < GRID_ROWS; r++) {
-              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "galley_fill");
-            }
+          // Fill galley row across cols 1–7
+          for (let c = TC.seatA; c <= TC.seatF; c++) {
+            this.add.image(
+              tx(c) + TILE / 2,
+              ty(TR.galley) + TILE / 2,
+              "galley_fill",
+            );
           }
 
           const g = this.add.graphics();
-          const x0 = tx(TC.galleyStart);
-          const w = (TC.galleyEnd - TC.galleyStart + 1) * TILE;
-          const y0 = ty(0);
-          const h = GRID_H;
+          const x0 = tx(TC.seatA);
+          const y0 = ty(TR.galley);
+          const w = (TC.seatF - TC.seatA + 1) * TILE;
 
-          // Counter strips top + bottom
-          g.fillStyle(0xaaaaaa);
-          g.fillRect(x0 + 2, y0 + 2, w - 4, 8);
-          g.fillRect(x0 + 2, y0 + h - 10, w - 4, 8);
+          // Upper counter band + lower equipment band (reads clearer in one tile)
+          g.fillStyle(0xb8b8b8);
+          g.fillRect(x0 + 2, y0 + 2, w - 4, 11);
+          g.lineStyle(1, 0x888888, 1);
+          g.strokeRect(x0 + 2, y0 + 2, w - 4, 11);
 
-          // Equipment units
-          const units = [
-            [y0 + 14, 0x00cc44],
-            [y0 + 38, 0xffaa00],
-            [y0 + 62, 0x00cc44],
-            [y0 + h - 36, 0xffaa00],
-            [y0 + h - 60, 0x00cc44],
-          ];
-          units.forEach(([uy, light]) => {
-            g.fillStyle(0x999999);
-            g.fillRect(x0 + 3, uy, w - 6, 18);
-            g.fillStyle(0x888888);
-            g.fillRect(x0 + 5, uy + 3, w - 10, 4);
-            g.fillStyle(light);
-            g.fillRect(x0 + w - 8, uy + 3, 3, 3);
-          });
+          // Lower galley “bench” / ovens
+          g.fillStyle(0x999999);
+          g.fillRect(x0 + 4, y0 + 16, w - 8, TILE - 20);
+          g.fillStyle(0x888888);
+          g.fillRect(x0 + 6, y0 + 19, w - 12, 4);
 
-          // Trolley cart in aisle zone
-          const trolleyX = tx(TC.galleyStart) + 4;
-          const trolleyY = ty(TR.aisleTop) + (2 * TILE) / 2;
-          this.add.image(trolleyX + 12, trolleyY, "trolley").setOrigin(0.5);
-
-          // GALLEY label
-          this.add
-            .text(x0 + w / 2, y0 + h - 24, "GALLEY", {
-              fontFamily: '"Press Start 2P"',
-              fontSize: "5px",
-              color: "#777777",
-            })
-            .setOrigin(0.5)
-            .setAngle(-90);
-        }
-
-        // ---------------------------------------------------------------------------
-        // PASSENGERS — placed on occupied seats
-        // ---------------------------------------------------------------------------
-        drawPassengers() {
-          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
-          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
-            allSeatRows.forEach((r, seatIdx) => {
-              if (!paxMap[c][seatIdx].occ) return;
-              const px = tx(c) + TILE / 2;
-              const py = ty(r) + TILE / 2;
-              const v = paxMap[c][seatIdx].v;
-              // All pax face south (toward camera); sprite includes the seat graphic.
-              this.add
-                .image(px, py, `pax-${v}-south`)
-                .setDisplaySize(38, 38);
-            });
+          // Small indicator lights along the bench
+          const lightsY = y0 + 24;
+          const step = Math.floor((w - 20) / 6);
+          for (let i = 0; i < 6; i++) {
+            const lx = x0 + 10 + i * step;
+            g.fillStyle(i % 2 === 0 ? 0x00cc44 : 0xffaa00);
+            g.fillRect(lx, lightsY, 4, 4);
           }
+
+          // Trolley in the aisle tile of the galley row
+          const trolleyX = tx(TC.aisle) + TILE / 2;
+          const trolleyY = ty(TR.galley) + TILE / 2;
+          this.add.image(trolleyX, trolleyY + 4, "trolley").setOrigin(0.5);
+
+          // GALLEY label — sits on the lower bench band (clear of counter + lights)
+          this.add
+            .text(x0 + w / 2, y0 + 34, "GALLEY", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "7px",
+              color: "#1b2a4a",
+              stroke: "#e8e8e8",
+              strokeThickness: 2,
+            })
+            .setOrigin(0.5, 0.5);
         }
 
         // ---------------------------------------------------------------------------
-        // CREW — spawns in galley aisle zone (rightmost position)
+        // CREW — spawns in the top galley aisle (row TR.galley, col TC.aisle)
         // ---------------------------------------------------------------------------
         drawCrew() {
-          const cx = tx(TC.galleyStart) + TILE / 2;
-          const cy = ty(TR.aisleTop) + TILE;
+          const cx = tx(TC.aisle) + TILE / 2;
+          const cy = ty(TR.galley) + TILE / 2;
+
+          // Standing crew — no seat tile background (unlike seated passengers)
 
           // Character select sets window.selectedCrew; default / undefined = female.
           this.crewGender =
@@ -703,11 +740,11 @@
           this.crewSprite = this.add
             .image(cx, cy, `${prefix}south`)
             .setOrigin(0.5, 0.5)
-            .setDisplaySize(38, 38);
+            .setDisplaySize(TILE - 4, TILE - 4);
         }
 
         // ---------------------------------------------------------------------------
-        // LABELS — row numbers + seat letters
+        // LABELS — row numbers (left) + seat letters (top)
         // ---------------------------------------------------------------------------
         drawLabels() {
           const labelStyle = {
@@ -716,48 +753,45 @@
             color: "#888888",
           };
 
-          // Seat letter labels (left of cabin, inside cockpit right edge)
-          const lx = tx(TC.cabinStart) - 10;
-          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
-          const labels = ["A", "B", "C", "D", "E", "F"];
-          allSeatRows.forEach((r, i) => {
+          // Row numbers (1–8) to the left of the cabin rows
+          const rowLabelX = tx(TC.fuseLeft) - 10;
+          for (let r = 0; r < CABIN_ROWS; r++) {
+            const tileRow = TR.cabin + r;
             this.add
-              .text(lx, ty(r) + TILE / 2, labels[i], labelStyle)
-              .setOrigin(0.5);
-          });
-
-          // Row numbers — in top fuselage wall above each cabin column
-          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
-            const num = c - TC.cabinStart + 1;
-            this.add
-              .text(
-                tx(c) + TILE / 2,
-                ty(TR.fuseTop) + TILE / 2,
-                String(num),
-                labelStyle,
-              )
+              .text(rowLabelX, ty(tileRow) + TILE / 2, String(r + 1), labelStyle)
               .setOrigin(0.5);
           }
+
+          // Seat letters above cabin (A B C | D E F)
+          const seatLetters = ["A", "B", "C", "D", "E", "F"];
+          const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
+          const seatLabelY = ty(TR.cabin) - 10;
+          seatCols.forEach((col, i) => {
+            this.add
+              .text(tx(col) + TILE / 2, seatLabelY, seatLetters[i], labelStyle)
+              .setOrigin(0.5);
+          });
         }
 
         // ---------------------------------------------------------------------------
-        // AISLE ARROW — shows player walks LEFT (toward cockpit)
+        // AISLE ARROW — shows player walks DOWN (toward cockpit)
         // ---------------------------------------------------------------------------
         drawAisleArrow() {
-          const midCol = TC.cabinStart + Math.floor(CABIN_COLS / 2);
-          const ax = tx(midCol) + TILE / 2;
-          const ay = ty(TR.aisleTop) + TILE - 4;
+          const midRow = TR.cabin + Math.floor(CABIN_ROWS / 2);
+          const ax = tx(TC.aisle) + TILE / 2;
+          const ay = ty(midRow) + TILE / 2;
 
           const g = this.add.graphics();
           g.fillStyle(0x999999);
           g.beginPath();
-          g.moveTo(ax, ay);
-          g.lineTo(ax - 10, ay - 5);
-          g.lineTo(ax - 10, ay - 2);
-          g.lineTo(ax - 22, ay - 2);
-          g.lineTo(ax - 22, ay + 2);
-          g.lineTo(ax - 10, ay + 2);
-          g.lineTo(ax - 10, ay + 5);
+          // Small pixel arrow pointing downward
+          g.moveTo(ax, ay + 12);
+          g.lineTo(ax - 6, ay + 2);
+          g.lineTo(ax - 2, ay + 2);
+          g.lineTo(ax - 2, ay - 10);
+          g.lineTo(ax + 2, ay - 10);
+          g.lineTo(ax + 2, ay + 2);
+          g.lineTo(ax + 6, ay + 2);
           g.closePath();
           g.fillPath();
         }
