@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Doors to Manual</title>
+
+    <!-- Jam widget (required for Cursor Vibe Jam 2026) -->
+    <script async src="https://vibej.am/2026/widget.js"></script>
+
+    <!-- Pixel font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Phaser 3 -->
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        background: #000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        font-family: "Press Start 2P", monospace;
+      }
+
+      #game-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      /* HUD bars — DOM elements, sit above/below canvas */
+      .hud {
+        width: 1024px;
+        background: #1b2a4a;
+        font-size: 11px;
+        color: #fff;
+        padding: 11px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        letter-spacing: 0.05em;
+        flex-shrink: 0;
+      }
+      .hud--top {
+        border-bottom: 2px solid #000;
+      }
+      .hud--bottom {
+        border-top: 2px solid #000;
+        justify-content: center;
+        gap: 40px;
+      }
+      .hud__armed {
+        color: #ff4444;
+      }
+      .hud__route {
+        color: #ffffff;
+      }
+      .hud__timer {
+        color: #ffff44;
+      }
+      .hud__score {
+        color: #00ff7f;
+      }
+      .hud__phase {
+        color: #aaaaaa;
+      }
+
+      /* Phaser mounts its canvas here */
+      #game-container canvas {
+        display: block !important;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+        border-left: 3px solid #111;
+        border-right: 3px solid #111;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-wrapper">
+      <header class="hud hud--top">
+        <span class="hud__armed">DOORS TO ARMED</span>
+        <span class="hud__route">SIN → KUL</span>
+        <span class="hud__timer" id="hud-timer">04:00</span>
+      </header>
+
+      <div id="game-container"></div>
+
+      <footer class="hud hud--bottom">
+        <span class="hud__score" id="hud-score">SCORE: 0</span>
+        <span class="hud__phase" id="hud-phase">PHASE: BOARDING</span>
+      </footer>
+    </div>
+    <script>
+      // =============================================================================
+      // DOORS TO MANUAL — Step 1: Static Cabin Scene (Phaser.js 3)
+      // Engine: Phaser 3 | Canvas: 1024x500 | Landscape
+      // =============================================================================
+
+      // ---------------------------------------------------------------------------
+      // CONSTANTS — grid geometry (matches vanilla JS version for continuity)
+      // ---------------------------------------------------------------------------
+      const CW = 1024,
+        CH = 500;
+      const TILE = 40;
+
+      // Grid: 20 cols × 10 rows = 640×320px, centred in 1024×500
+      const GRID_COLS = 20,
+        GRID_ROWS = 10;
+      const GRID_W = GRID_COLS * TILE; // 640
+      const GRID_H = GRID_ROWS * TILE; // 320
+      const OX = Math.floor((CW - GRID_W) / 2); // 192
+      const OY = Math.floor((CH - GRID_H) / 2); // 90
+
+      // Tile row indices
+      const TR = {
+        fuseTop: 0,
+        seatA: 1,
+        seatB: 2,
+        seatC: 3,
+        aisleTop: 4,
+        aisleBot: 5,
+        seatD: 6,
+        seatE: 7,
+        seatF: 8,
+        fuseBot: 9,
+      };
+
+      // Tile col indices
+      const TC = {
+        cockpitStart: 0,
+        cockpitEnd: 1,
+        cabinStart: 2,
+        cabinEnd: 15,
+        galleyStart: 16,
+        galleyEnd: 19,
+      };
+
+      const CABIN_COLS = TC.cabinEnd - TC.cabinStart + 1; // 14
+      const SEAT_ROWS_TOP = [TR.seatA, TR.seatB, TR.seatC];
+      const SEAT_ROWS_BOT = [TR.seatD, TR.seatE, TR.seatF];
+
+      // ---------------------------------------------------------------------------
+      // COLOURS
+      // ---------------------------------------------------------------------------
+      const C = {
+        bg: 0x111111,
+        fuselage: 0xe8e4dc,
+        fuseEdge: 0xc4c0b8,
+        window: 0x4a7aaa,
+        windowGlare: 0x7aaad0,
+        cabinFloor: 0xf5f0e8,
+        seatNavy: 0x1b2a4a,
+        seatHi: 0x2a3f6b,
+        aisle: 0xd0cec8,
+        aisleStripe: 0xbcbab4,
+        divider: 0xe0dbd0,
+        cockpitFill: 0x0f1a2e,
+        cockpitAccent: 0x1b2a4a,
+        galleyFill: 0xbbbbbb,
+        galleyUnit: 0x999999,
+        galleyTop: 0xaaaaaa,
+        // Passenger variants (muted so crew pops)
+        paxSkins: [0xd4a882, 0xc8956a, 0xe8c9a0, 0xb07850],
+        paxBodies: [0x8a8fa0, 0x7a8a70, 0x9a8878, 0x707890],
+        paxHairs: [0x2a2018, 0x111111, 0x503820, 0x182018],
+        // Crew
+        crewBody: 0x00ff7f,
+        crewSkin: 0xf5c5a0,
+        crewHair: 0x111111,
+        crewAccent: 0xffd700,
+      };
+
+      // ---------------------------------------------------------------------------
+      // SEEDED PRNG — consistent layout each session
+      // ---------------------------------------------------------------------------
+      let _s = 7331;
+      function rand() {
+        _s = (_s * 1664525 + 1013904223) >>> 0;
+        return _s / 0xffffffff;
+      }
+      function ri(a, b) {
+        return a + Math.floor(rand() * (b - a + 1));
+      }
+
+      // ---------------------------------------------------------------------------
+      // PASSENGER MAP — random 3-5 occupied seats per cabin column
+      // ---------------------------------------------------------------------------
+      const paxMap = {};
+      for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+        const total = ri(3, 5);
+        const indices = [0, 1, 2, 3, 4, 5];
+        for (let i = 5; i > 0; i--) {
+          const j = Math.floor(rand() * (i + 1));
+          [indices[i], indices[j]] = [indices[j], indices[i]];
+        }
+        const occupied = new Set(indices.slice(0, total));
+        paxMap[c] = Array.from({ length: 6 }, (_, s) => ({
+          occ: occupied.has(s),
+          v: ri(0, 3),
+        }));
+      }
+
+      // ---------------------------------------------------------------------------
+      // HELPER — pixel coordinate from tile col/row
+      // ---------------------------------------------------------------------------
+      function tx(col) {
+        return OX + col * TILE;
+      }
+      function ty(row) {
+        return OY + row * TILE;
+      }
+
+      // =============================================================================
+      // PHASER SCENE — CharacterSelectScene (crew gender before cabin)
+      // =============================================================================
+      class CharacterSelectScene extends Phaser.Scene {
+        constructor() {
+          super({ key: "CharacterSelectScene" });
+        }
+
+        preload() {
+          // Only the south-facing previews needed for this screen; cabin loads the rest.
+          this.load.image(
+            "female-crew-south",
+            "sprites/female-crew-south.png",
+          );
+          this.load.image("male-crew-south", "sprites/male-crew-south.png");
+        }
+
+        create() {
+          this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
+
+          // Title block (upper area)
+          this.add
+            .text(CW / 2, 95, "DOORS TO MANUAL", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "18px",
+              color: "#00FF7F",
+            })
+            .setOrigin(0.5);
+          this.add
+            .text(CW / 2, 128, "SELECT YOUR CREW", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "10px",
+              color: "#FFFFFF",
+            })
+            .setOrigin(0.5);
+
+          // Option layout: two 80×120 boxes, 120px gap between outer edges
+          const boxW = 80;
+          const boxH = 120;
+          const gap = 120;
+          const totalW = boxW + gap + boxW;
+          const leftCx = CW / 2 - totalW / 2 + boxW / 2;
+          const rightCx = CW / 2 + totalW / 2 - boxW / 2;
+          const boxTopY = 128 + 10 + 40;
+
+          let selected = "female"; // default highlight (matches green border)
+
+          const drawBox = (g, x, y, highlighted) => {
+            g.clear();
+            const r = 6;
+            g.fillStyle(0x0f1a2e, 1);
+            g.fillRoundedRect(x - boxW / 2, y, boxW, boxH, r);
+            g.lineStyle(
+              2,
+              highlighted ? 0x00ff7f : 0x1b2a4a,
+              1,
+            );
+            g.strokeRoundedRect(x - boxW / 2, y, boxW, boxH, r);
+          };
+
+          const leftG = this.add.graphics();
+          const rightG = this.add.graphics();
+
+          const refreshBorders = () => {
+            drawBox(leftG, leftCx, boxTopY, selected === "female");
+            drawBox(rightG, rightCx, boxTopY, selected === "male");
+          };
+          refreshBorders();
+
+          const leftSprite = this.add
+            .image(leftCx, boxTopY + boxH / 2, "female-crew-south")
+            .setDisplaySize(48, 48);
+          const rightSprite = this.add
+            .image(rightCx, boxTopY + boxH / 2, "male-crew-south")
+            .setDisplaySize(48, 48);
+
+          this.add
+            .text(leftCx, boxTopY + boxH + 10, "FEMALE", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "7px",
+              color: "#FFFFFF",
+            })
+            .setOrigin(0.5, 0);
+          this.add
+            .text(rightCx, boxTopY + boxH + 10, "MALE", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "7px",
+              color: "#FFFFFF",
+            })
+            .setOrigin(0.5, 0);
+
+          const hitPad = 10;
+          const makeZone = (cx, key) => {
+            const z = this.add
+              .zone(
+                cx,
+                boxTopY + boxH / 2,
+                boxW + hitPad * 2,
+                boxH + 40 + hitPad,
+              )
+              .setOrigin(0.5, 0.5)
+              .setInteractive({ useHandCursor: true });
+            z.on("pointerover", () => {
+              selected = key;
+              refreshBorders();
+            });
+            z.on("pointerdown", () => {
+              window.selectedCrew = key;
+              this.scene.start("CabinScene");
+            });
+            return z;
+          };
+          makeZone(leftCx, "female");
+          makeZone(rightCx, "male");
+
+          const hint = this.add
+            .text(CW / 2, 460, "CLICK TO SELECT", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "6px",
+              color: "#888888",
+            })
+            .setOrigin(0.5);
+          this.tweens.add({
+            targets: hint,
+            alpha: { from: 1, to: 0.35 },
+            duration: 300,
+            yoyo: true,
+            repeat: -1,
+          });
+        }
+      }
+
+      // =============================================================================
+      // PHASER SCENE — CabinScene
+      // =============================================================================
+      class CabinScene extends Phaser.Scene {
+        constructor() {
+          super({ key: "CabinScene" });
+        }
+
+        // ---------------------------------------------------------------------------
+        // PRELOAD — PNG sprites + programmatic cabin tiles (Graphics)
+        // ---------------------------------------------------------------------------
+        preload() {
+          const crew = ["south", "north", "east", "west"];
+          crew.forEach((dir) => {
+            this.load.image(
+              `female-crew-${dir}`,
+              `sprites/female-crew-${dir}.png`,
+            );
+            this.load.image(
+              `male-crew-${dir}`,
+              `sprites/male-crew-${dir}.png`,
+            );
+          });
+          for (let v = 0; v < 4; v++) {
+            crew.forEach((dir) => {
+              this.load.image(
+                `pax-${v}-${dir}`,
+                `sprites/pax-${v}-${dir}.png`,
+              );
+            });
+          }
+          this.generateTextures();
+        }
+
+        generateTextures() {
+          const g = this.make.graphics({ x: 0, y: 0, add: false });
+
+          // --- Fuselage top/bottom wall tile (32×32) ---
+          g.clear();
+          g.fillStyle(C.fuselage);
+          g.fillRect(0, 0, TILE, TILE);
+          g.fillStyle(C.fuseEdge);
+          g.fillRect(0, 0, TILE, 3);
+          g.generateTexture("fuse_wall", TILE, TILE);
+
+          // --- Porthole (16×16, drawn centred) ---
+          g.clear();
+          g.fillStyle(C.fuseEdge);
+          g.fillCircle(8, 8, 9);
+          g.fillStyle(C.window);
+          g.fillCircle(8, 8, 7);
+          g.fillStyle(C.windowGlare);
+          g.fillCircle(6, 6, 3);
+          g.generateTexture("porthole", 16, 16);
+
+          // --- Cabin floor tile (32×32, beige) ---
+          g.clear();
+          g.fillStyle(C.cabinFloor);
+          g.fillRect(0, 0, TILE, TILE);
+          g.generateTexture("cabin_floor", TILE, TILE);
+
+          // --- Aisle tile (32×32, grey with centre dash) ---
+          g.clear();
+          g.fillStyle(C.aisle);
+          g.fillRect(0, 0, TILE, TILE);
+          g.fillStyle(C.aisleStripe);
+          g.fillRect(TILE / 2 - 1, 4, 2, TILE - 8);
+          g.generateTexture("aisle_tile", TILE, TILE);
+
+          // --- Seat tile (32×32, navy with highlight) ---
+          g.clear();
+          g.fillStyle(C.cabinFloor);
+          g.fillRect(0, 0, TILE, TILE);
+          g.fillStyle(C.seatNavy);
+          g.fillRect(3, 2, TILE - 6, TILE - 4);
+          g.fillStyle(C.seatHi);
+          g.fillRect(3, 2, TILE - 6, 5);
+          g.generateTexture("seat_tile", TILE, TILE);
+
+          // --- Column divider (1×96 — 3 seat rows tall) ---
+          g.clear();
+          g.fillStyle(C.divider);
+          g.fillRect(0, 0, 1, TILE * 3);
+          g.generateTexture("col_divider", 1, TILE * 3);
+
+          // --- Cockpit fill tile (32×32) ---
+          g.clear();
+          g.fillStyle(C.cockpitFill);
+          g.fillRect(0, 0, TILE, TILE);
+          g.generateTexture("cockpit_fill", TILE, TILE);
+
+          // --- Galley fill tile (32×32) ---
+          g.clear();
+          g.fillStyle(C.galleyFill);
+          g.fillRect(0, 0, TILE, TILE);
+          g.generateTexture("galley_fill", TILE, TILE);
+
+          // --- Trolley (24×56, silver) ---
+          g.clear();
+          g.fillStyle(0xcccccc);
+          g.fillRect(0, 0, 24, 56);
+          g.fillStyle(0xaaaaaa);
+          g.fillRect(2, Math.floor(56 / 3), 20, 2);
+          g.fillRect(2, Math.floor((56 * 2) / 3), 20, 2);
+          g.fillStyle(0x555555); // wheels
+          g.fillRect(2, 52, 7, 4);
+          g.fillRect(15, 52, 7, 4);
+          g.fillStyle(0x999999); // handle (left side)
+          g.fillRect(-5, 10, 5, 36);
+          g.generateTexture("trolley", 29, 56);
+
+          // Passenger and crew sprites are loaded from /sprites/*.png in preload().
+
+          g.destroy();
+        }
+
+        // ---------------------------------------------------------------------------
+        // CREATE — place all static scene objects
+        // ---------------------------------------------------------------------------
+        create() {
+          // Background
+          this.add.rectangle(CW / 2, CH / 2, CW, CH, C.bg);
+
+          this.drawFuselage();
+          this.drawCabin();
+          this.drawCockpit();
+          this.drawGalley();
+          this.drawPassengers();
+          this.drawCrew();
+          this.drawLabels();
+          this.drawAisleArrow();
+        }
+
+        // ---------------------------------------------------------------------------
+        // FUSELAGE — top and bottom hull wall bands + portholes
+        // ---------------------------------------------------------------------------
+        drawFuselage() {
+          // Top wall
+          for (let c = 0; c < GRID_COLS; c++) {
+            this.add.image(
+              tx(c) + TILE / 2,
+              ty(TR.fuseTop) + TILE / 2,
+              "fuse_wall",
+            );
+          }
+          // Bottom wall (flipped vertically)
+          for (let c = 0; c < GRID_COLS; c++) {
+            this.add
+              .image(tx(c) + TILE / 2, ty(TR.fuseBot) + TILE / 2, "fuse_wall")
+              .setFlipY(true);
+          }
+
+          // Portholes — one per cabin column, top and bottom
+          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+            const px = tx(c) + TILE / 2;
+            this.add.image(px, ty(TR.fuseTop) + TILE / 2, "porthole");
+            this.add.image(px, ty(TR.fuseBot) + TILE / 2, "porthole");
+          }
+        }
+
+        // ---------------------------------------------------------------------------
+        // CABIN INTERIOR — floors, seats, aisle
+        // ---------------------------------------------------------------------------
+        drawCabin() {
+          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
+          const aisleRows = [TR.aisleTop, TR.aisleBot];
+
+          // Seat tiles (empty seats only — occupied seats show PNG with seat baked in)
+          // and aisle tiles for each cabin column
+          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+            allSeatRows.forEach((r, seatIdx) => {
+              if (paxMap[c][seatIdx].occ) return;
+              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "seat_tile");
+            });
+            for (const r of aisleRows) {
+              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "aisle_tile");
+            }
+          }
+
+          // Column dividers — between cabin columns
+          for (let c = TC.cabinStart + 1; c <= TC.cabinEnd; c++) {
+            // Top seat block
+            this.add
+              .image(tx(c), ty(TR.seatA) + TILE * 1.5, "col_divider")
+              .setOrigin(0, 0.5);
+            // Bottom seat block
+            this.add
+              .image(tx(c), ty(TR.seatD) + TILE * 1.5, "col_divider")
+              .setOrigin(0, 0.5);
+          }
+        }
+
+        // ---------------------------------------------------------------------------
+        // COCKPIT — left 2 columns
+        // ---------------------------------------------------------------------------
+        drawCockpit() {
+          // Fill all cockpit tiles
+          for (let c = TC.cockpitStart; c <= TC.cockpitEnd; c++) {
+            for (let r = 0; r < GRID_ROWS; r++) {
+              this.add.image(
+                tx(c) + TILE / 2,
+                ty(r) + TILE / 2,
+                "cockpit_fill",
+              );
+            }
+          }
+
+          // Door panel (Graphics — drawn over tiles)
+          const g = this.add.graphics();
+          const x0 = tx(TC.cockpitStart);
+          const w = 2 * TILE;
+          const dy = ty(TR.aisleTop) - TILE;
+          const dh = 4 * TILE;
+
+          g.fillStyle(0x1b2a4a);
+          g.fillRect(x0 + 4, dy + 4, w - 8, dh - 8);
+
+          g.lineStyle(1.5, 0x0a1020);
+          g.strokeRect(x0 + 6, dy + 6, w - 12, dh - 12);
+
+          // Centre seam
+          g.lineStyle(1.5, 0x0a1020);
+          g.beginPath();
+          g.moveTo(x0 + w / 2, dy + 8);
+          g.lineTo(x0 + w / 2, dy + dh - 8);
+          g.strokePath();
+
+          // Handle
+          g.fillStyle(0x3a5080);
+          g.fillRect(x0 + w - 12, dy + dh / 2 - 5, 5, 10);
+
+          // Portholes on cockpit door
+          this.add
+            .image(x0 + w / 2, ty(TR.seatB) + TILE / 2, "porthole")
+            .setScale(0.85);
+          this.add
+            .image(x0 + w / 2, ty(TR.seatE) + TILE / 2, "porthole")
+            .setScale(0.85);
+
+          // COCKPIT label (rotated text)
+          this.add
+            .text(x0 + w / 2, ty(0) + GRID_H / 2, "COCKPIT", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "5px",
+              color: "#3a5080",
+            })
+            .setOrigin(0.5)
+            .setAngle(-90);
+        }
+
+        // ---------------------------------------------------------------------------
+        // GALLEY — right zone columns
+        // ---------------------------------------------------------------------------
+        drawGalley() {
+          // Fill all galley tiles
+          for (let c = TC.galleyStart; c <= TC.galleyEnd; c++) {
+            for (let r = 0; r < GRID_ROWS; r++) {
+              this.add.image(tx(c) + TILE / 2, ty(r) + TILE / 2, "galley_fill");
+            }
+          }
+
+          const g = this.add.graphics();
+          const x0 = tx(TC.galleyStart);
+          const w = (TC.galleyEnd - TC.galleyStart + 1) * TILE;
+          const y0 = ty(0);
+          const h = GRID_H;
+
+          // Counter strips top + bottom
+          g.fillStyle(0xaaaaaa);
+          g.fillRect(x0 + 2, y0 + 2, w - 4, 8);
+          g.fillRect(x0 + 2, y0 + h - 10, w - 4, 8);
+
+          // Equipment units
+          const units = [
+            [y0 + 14, 0x00cc44],
+            [y0 + 38, 0xffaa00],
+            [y0 + 62, 0x00cc44],
+            [y0 + h - 36, 0xffaa00],
+            [y0 + h - 60, 0x00cc44],
+          ];
+          units.forEach(([uy, light]) => {
+            g.fillStyle(0x999999);
+            g.fillRect(x0 + 3, uy, w - 6, 18);
+            g.fillStyle(0x888888);
+            g.fillRect(x0 + 5, uy + 3, w - 10, 4);
+            g.fillStyle(light);
+            g.fillRect(x0 + w - 8, uy + 3, 3, 3);
+          });
+
+          // Trolley cart in aisle zone
+          const trolleyX = tx(TC.galleyStart) + 4;
+          const trolleyY = ty(TR.aisleTop) + (2 * TILE) / 2;
+          this.add.image(trolleyX + 12, trolleyY, "trolley").setOrigin(0.5);
+
+          // GALLEY label
+          this.add
+            .text(x0 + w / 2, y0 + h - 24, "GALLEY", {
+              fontFamily: '"Press Start 2P"',
+              fontSize: "5px",
+              color: "#777777",
+            })
+            .setOrigin(0.5)
+            .setAngle(-90);
+        }
+
+        // ---------------------------------------------------------------------------
+        // PASSENGERS — placed on occupied seats
+        // ---------------------------------------------------------------------------
+        drawPassengers() {
+          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
+          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+            allSeatRows.forEach((r, seatIdx) => {
+              if (!paxMap[c][seatIdx].occ) return;
+              const px = tx(c) + TILE / 2;
+              const py = ty(r) + TILE / 2;
+              const v = paxMap[c][seatIdx].v;
+              // All pax face south (toward camera); sprite includes the seat graphic.
+              this.add
+                .image(px, py, `pax-${v}-south`)
+                .setDisplaySize(38, 38);
+            });
+          }
+        }
+
+        // ---------------------------------------------------------------------------
+        // CREW — spawns in galley aisle zone (rightmost position)
+        // ---------------------------------------------------------------------------
+        drawCrew() {
+          const cx = tx(TC.galleyStart) + TILE / 2;
+          const cy = ty(TR.aisleTop) + TILE;
+
+          // Character select sets window.selectedCrew; default / undefined = female.
+          this.crewGender =
+            window.selectedCrew === "male" ? "male" : "female";
+          const prefix =
+            this.crewGender === "male" ? "male-crew-" : "female-crew-";
+          this.crewTexturePrefix = prefix;
+
+          this.crewDir = "south";
+          this.crewSprite = this.add
+            .image(cx, cy, `${prefix}south`)
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(38, 38);
+        }
+
+        // ---------------------------------------------------------------------------
+        // LABELS — row numbers + seat letters
+        // ---------------------------------------------------------------------------
+        drawLabels() {
+          const labelStyle = {
+            fontFamily: '"Press Start 2P"',
+            fontSize: "5px",
+            color: "#888888",
+          };
+
+          // Seat letter labels (left of cabin, inside cockpit right edge)
+          const lx = tx(TC.cabinStart) - 10;
+          const allSeatRows = [...SEAT_ROWS_TOP, ...SEAT_ROWS_BOT];
+          const labels = ["A", "B", "C", "D", "E", "F"];
+          allSeatRows.forEach((r, i) => {
+            this.add
+              .text(lx, ty(r) + TILE / 2, labels[i], labelStyle)
+              .setOrigin(0.5);
+          });
+
+          // Row numbers — in top fuselage wall above each cabin column
+          for (let c = TC.cabinStart; c <= TC.cabinEnd; c++) {
+            const num = c - TC.cabinStart + 1;
+            this.add
+              .text(
+                tx(c) + TILE / 2,
+                ty(TR.fuseTop) + TILE / 2,
+                String(num),
+                labelStyle,
+              )
+              .setOrigin(0.5);
+          }
+        }
+
+        // ---------------------------------------------------------------------------
+        // AISLE ARROW — shows player walks LEFT (toward cockpit)
+        // ---------------------------------------------------------------------------
+        drawAisleArrow() {
+          const midCol = TC.cabinStart + Math.floor(CABIN_COLS / 2);
+          const ax = tx(midCol) + TILE / 2;
+          const ay = ty(TR.aisleTop) + TILE - 4;
+
+          const g = this.add.graphics();
+          g.fillStyle(0x999999);
+          g.beginPath();
+          g.moveTo(ax, ay);
+          g.lineTo(ax - 10, ay - 5);
+          g.lineTo(ax - 10, ay - 2);
+          g.lineTo(ax - 22, ay - 2);
+          g.lineTo(ax - 22, ay + 2);
+          g.lineTo(ax - 10, ay + 2);
+          g.lineTo(ax - 10, ay + 5);
+          g.closePath();
+          g.fillPath();
+        }
+      }
+
+      // =============================================================================
+      // PHASER GAME CONFIG
+      // =============================================================================
+      const config = {
+        type: Phaser.AUTO,
+        width: CW,
+        height: CH,
+        backgroundColor: "#111111",
+        pixelArt: true, // disables anti-aliasing — crisp pixel edges
+        roundPixels: true, // prevents sub-pixel blurring
+        parent: "game-container",
+        scene: [CharacterSelectScene, CabinScene],
+        scale: {
+          mode: Phaser.Scale.FIT,
+          autoCenter: Phaser.Scale.CENTER_BOTH,
+        },
+      };
+
+      const game = new Phaser.Game(config);
+    </script>
+  </body>
+</html>
