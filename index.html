@@ -582,20 +582,16 @@
               const cy = ty(tileRow) + TILE / 2;
               const seat = paxMap[rowNum][seatIdx];
 
+              seatBg.fillRect(
+                tx(col) + 2,
+                ty(tileRow) + 2,
+                TILE - 4,
+                TILE - 4,
+              );
               if (seat.occ) {
-                // Occupied seat: draw background + pax sprite (seat baked into PNG)
-                seatBg.fillRect(
-                  tx(col) + 2,
-                  ty(tileRow) + 2,
-                  TILE - 4,
-                  TILE - 4,
-                );
                 this.add
                   .image(cx, cy, `pax-${seat.v}-south`)
                   .setDisplaySize(TILE - 8, TILE - 8);
-              } else {
-                // Empty seat: draw seat tile as before
-                this.add.image(cx, cy, "seat_tile");
               }
             });
           }
@@ -757,18 +753,23 @@
           const rowLabelX = tx(TC.fuseLeft) - 10;
           for (let r = 0; r < CABIN_ROWS; r++) {
             const tileRow = TR.cabin + r;
+            const rowLabel = String(CABIN_ROWS - r);
             this.add
-              .text(rowLabelX, ty(tileRow) + TILE / 2, String(r + 1), labelStyle)
+              .text(rowLabelX, ty(tileRow) + TILE / 2, rowLabel, labelStyle)
               .setOrigin(0.5);
           }
 
-          // Seat letters above cabin (A B C | D E F)
-          const seatLetters = ["A", "B", "C", "D", "E", "F"];
+          // Seat letters above cabin (F E D | C B A)
+          const seatLetters = ["F", "E", "D", "C", "B", "A"];
           const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
           const seatLabelY = ty(TR.cabin) - 10;
+          const seatLetterStyle = {
+            ...labelStyle,
+            color: "#cccccc",
+          };
           seatCols.forEach((col, i) => {
             this.add
-              .text(tx(col) + TILE / 2, seatLabelY, seatLetters[i], labelStyle)
+              .text(tx(col) + TILE / 2, seatLabelY, seatLetters[i], seatLetterStyle)
               .setOrigin(0.5);
           });
         }
