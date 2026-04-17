@@ -42,13 +42,7 @@ class CabinScene extends Phaser.Scene {
     this.drawFuselage();
     this.drawGalley();
 
-    this.trolley = this.add
-      .image(
-        tx(TC.aisle) + TILE / 2,
-        ty(TR.galley) + TILE / 2 + 4,
-        "trolley",
-      )
-      .setOrigin(0.5);
+    this.trolley = null;
     this.trolleyRow = TR.galley;
 
     for (let r = 0; r < CABIN_ROWS; r++) {
@@ -65,11 +59,12 @@ class CabinScene extends Phaser.Scene {
 
     this.aisleTint = this.add.graphics();
 
+    this.playerCol = TC.aisle;
+    this.playerRow = TR.cabin + 7;
     this.drawCrew();
 
-    this.phase = "idle";
-    this.playerCol = TC.aisle;
-    this.playerRow = TR.galley;
+    this.setPhase("idle");
+    this.serviceEntryComplete = true;
 
     this.keyW = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.W,
@@ -85,6 +80,12 @@ class CabinScene extends Phaser.Scene {
     );
     this.keySpace = this.input.keyboard.addKey(
       Phaser.Input.Keyboard.KeyCodes.SPACE,
+    );
+    this.keyArrowUp = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.UP,
+    );
+    this.keyArrowDown = this.input.keyboard.addKey(
+      Phaser.Input.Keyboard.KeyCodes.DOWN,
     );
 
     this.drawLabels();
@@ -107,30 +108,41 @@ class CabinScene extends Phaser.Scene {
     }
   }
 
+  setPhase(phase) {
+    this.phase = phase;
+    const labels = {
+      idle: "BOARDING",
+      service: "SERVICE",
+      landing: "LANDING",
+    };
+    const el = document.getElementById("hud-phase");
+    if (el) {
+      el.textContent =
+        "PHASE: " + (labels[phase] || phase.toUpperCase());
+    }
+    if (phase === "landing") {
+      this.setAisleTint(false);
+    }
+  }
+
+  syncServiceUnitPositions() {
+    this.trolleyRow = this.playerRow - 1;
+    this.crewSprite.setPosition(
+      tx(this.playerCol) + TILE / 2,
+      ty(this.playerRow) + TILE / 2,
+    );
+    this.trolley.setPosition(
+      tx(TC.aisle) + TILE / 2,
+      ty(this.trolleyRow) + TILE / 2 + 4,
+    );
+  }
+
   update() {
     if (Phaser.Input.Keyboard.JustDown(this.keyW)) {
-      if (this.playerRow > TR.galley) {
-        this.playerRow -= 1;
-        this.crewSprite.setTexture(
-          `${this.crewTexturePrefix}north`,
-        );
-        this.crewSprite.setPosition(
-          tx(this.playerCol) + TILE / 2,
-          ty(this.playerRow) + TILE / 2,
-        );
-      }
+      this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
     }
     if (Phaser.Input.Keyboard.JustDown(this.keyS)) {
-      if (this.playerRow < TR.cabin + 7) {
-        this.playerRow += 1;
-        this.crewSprite.setTexture(
-          `${this.crewTexturePrefix}south`,
-        );
-        this.crewSprite.setPosition(
-          tx(this.playerCol) + TILE / 2,
-          ty(this.playerRow) + TILE / 2,
-        );
-      }
+      this.crewSprite.setTexture(`${this.crewTexturePrefix}south`);
     }
     if (Phaser.Input.Keyboard.JustDown(this.keyA)) {
       this.crewSprite.setTexture(`${this.crewTexturePrefix}west`);
@@ -138,40 +150,84 @@ class CabinScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(this.keyD)) {
       this.crewSprite.setTexture(`${this.crewTexturePrefix}east`);
     }
+
+    const boardingMove =
+      this.phase === "idle" && this.serviceEntryComplete;
+    const serviceMove =
+      this.phase === "service" && this.serviceEntryComplete;
+
+    if (Phaser.Input.Keyboard.JustDown(this.keyArrowUp)) {
+      this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+      if (boardingMove && this.playerRow > TR.galley) {
+        this.playerRow -= 1;
+        this.crewSprite.setPosition(
+          tx(this.playerCol) + TILE / 2,
+          ty(this.playerRow) + TILE / 2,
+        );
+      } else if (
+        serviceMove &&
+        this.playerRow > TR.galley + 1
+      ) {
+        this.playerRow -= 1;
+        this.syncServiceUnitPositions();
+      }
+    }
+    if (Phaser.Input.Keyboard.JustDown(this.keyArrowDown)) {
+      if (this.phase === "service") {
+        this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+      } else {
+        this.crewSprite.setTexture(`${this.crewTexturePrefix}south`);
+      }
+      if (boardingMove && this.playerRow < TR.cabin + 7) {
+        this.playerRow += 1;
+        this.crewSprite.setPosition(
+          tx(this.playerCol) + TILE / 2,
+          ty(this.playerRow) + TILE / 2,
+        );
+      } else if (serviceMove && this.playerRow < TR.cabin + 7) {
+        this.playerRow += 1;
+        this.syncServiceUnitPositions();
+      }
+    }
+
     if (
       this.phase === "idle" &&
       Phaser.Input.Keyboard.JustDown(this.keySpace)
     ) {
-      this.phase = "pullup";
-      this.setAisleTint(true);
-    }
-    if (this.phase === "pullup") {
-      let targetRow = this.playerRow + 1;
-      targetRow = Math.max(targetRow, TR.galley);
-      if (
-        this.trolleyRow !== targetRow &&
-        !this.trolley.getData("tweening")
-      ) {
-        this.trolleyRow = targetRow;
-        this.trolley.setData("tweening", true);
-        this.tweens.add({
-          targets: this.trolley,
-          y: ty(this.trolleyRow) + TILE / 2 + 4,
-          duration: 180,
-          ease: "Quad.easeOut",
-          onComplete: () => {
-            this.trolley.setData("tweening", false);
-          },
-        });
+      if (!this.trolley) {
+        this.trolley = this.add
+          .image(
+            tx(TC.aisle) + TILE / 2,
+            ty(TR.galley) + TILE / 2 + 4,
+            "trolley",
+          )
+          .setOrigin(0.5, 0.5)
+          .setDepth(10);
       }
-    }
-    if (
-      this.phase === "pullup" &&
-      this.playerRow === TR.cabin + 7
-    ) {
-      this.phase = "service";
-      this.setAisleTint(false);
-      console.log("Pull-up complete — service phase begins");
+      this.trolleyRow = TR.galley;
+      this.trolley.setPosition(
+        tx(TC.aisle) + TILE / 2,
+        ty(TR.galley) + TILE / 2 + 4,
+      );
+      this.setPhase("service");
+      this.setAisleTint(true);
+      this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+      this.serviceEntryComplete = false;
+      this.tweens.add({
+        targets: this.crewSprite,
+        y: ty(TR.galley + 1) + TILE / 2,
+        duration: 250,
+        ease: "Quad.easeOut",
+        onComplete: () => {
+          this.playerRow = TR.galley + 1;
+          this.crewSprite.setPosition(
+            tx(this.playerCol) + TILE / 2,
+            ty(this.playerRow) + TILE / 2,
+          );
+          this.syncServiceUnitPositions();
+          this.serviceEntryComplete = true;
+        },
+      });
     }
   }
 
@@ -363,11 +419,11 @@ class CabinScene extends Phaser.Scene {
   }
 
   // ---------------------------------------------------------------------------
-  // CREW — spawns in the top galley aisle (row TR.galley, col TC.aisle)
+  // CREW — boarding: aisle at this.playerRow / this.playerCol (set before call)
   // ---------------------------------------------------------------------------
   drawCrew() {
-    const cx = tx(TC.aisle) + TILE / 2;
-    const cy = ty(TR.galley) + TILE / 2;
+    const cx = tx(this.playerCol) + TILE / 2;
+    const cy = ty(this.playerRow) + TILE / 2;
 
     // Standing crew — no seat tile background (unlike seated passengers)
 
@@ -382,7 +438,8 @@ class CabinScene extends Phaser.Scene {
     this.crewSprite = this.add
       .image(cx, cy, `${prefix}south`)
       .setOrigin(0.5, 0.5)
-      .setDisplaySize(TILE - 4, TILE - 4);
+      .setDisplaySize(TILE - 4, TILE - 4)
+      .setDepth(20);
   }
 
   // ---------------------------------------------------------------------------

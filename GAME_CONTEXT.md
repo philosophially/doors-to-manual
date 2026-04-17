@@ -80,16 +80,15 @@ Player is always constrained to `TC.aisle` — cannot enter seat columns.
 ---
 
 ## Phase Flow
-`idle` → `pullup` → `service` → `collection` → `callbutton` → `descent` → `win`
+`idle` (HUD: BOARDING) → `service` (HUD: SERVICE, first SPACEBAR) → `landing` (HUD: LANDING) → … → `collection` → `callbutton` → `win`
 
 | Phase | Trigger |
 |---|---|
-| `idle` | Game start — waiting for SPACEBAR |
-| `pullup` | SPACEBAR in galley — trolley follows player down to Row 1 |
-| `service` | Player reaches Row 1 — drink service begins |
+| `idle` | Game start — crew at Row 1 (aisle); arrows along aisle; SPACEBAR starts service |
+| `service` | First SPACEBAR from boarding — trolley appears; crew + trolley move with arrows |
+| `landing` | (Reserved) — aisle tint clears when this phase is entered |
 | `collection` | Trolley parks — player collects cups |
 | `callbutton` | Call buttons fire randomly |
-| `descent` | Timer expires — seatbelt sign on, player returns to jump seat |
 | `win` | Landing complete — DOORS TO MANUAL screen |
 
 ---
