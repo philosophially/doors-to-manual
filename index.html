@@ -513,8 +513,57 @@
           this.drawCabin();
           this.drawCockpit();
           this.drawCrew();
+
+          this.playerCol = TC.aisle;
+          this.playerRow = TR.galley;
+
+          this.keyW = this.input.keyboard.addKey(
+            Phaser.Input.Keyboard.KeyCodes.W,
+          );
+          this.keyS = this.input.keyboard.addKey(
+            Phaser.Input.Keyboard.KeyCodes.S,
+          );
+          this.keyA = this.input.keyboard.addKey(
+            Phaser.Input.Keyboard.KeyCodes.A,
+          );
+          this.keyD = this.input.keyboard.addKey(
+            Phaser.Input.Keyboard.KeyCodes.D,
+          );
+
           this.drawLabels();
-          this.drawAisleArrow();
+        }
+
+        update() {
+          if (Phaser.Input.Keyboard.JustDown(this.keyW)) {
+            if (this.playerRow > TR.galley) {
+              this.playerRow -= 1;
+              this.crewSprite.setTexture(
+                `${this.crewTexturePrefix}north`,
+              );
+              this.crewSprite.setPosition(
+                tx(this.playerCol) + TILE / 2,
+                ty(this.playerRow) + TILE / 2,
+              );
+            }
+          }
+          if (Phaser.Input.Keyboard.JustDown(this.keyS)) {
+            if (this.playerRow < TR.cabin + 7) {
+              this.playerRow += 1;
+              this.crewSprite.setTexture(
+                `${this.crewTexturePrefix}south`,
+              );
+              this.crewSprite.setPosition(
+                tx(this.playerCol) + TILE / 2,
+                ty(this.playerRow) + TILE / 2,
+              );
+            }
+          }
+          if (Phaser.Input.Keyboard.JustDown(this.keyA)) {
+            this.crewSprite.setTexture(`${this.crewTexturePrefix}west`);
+          }
+          if (Phaser.Input.Keyboard.JustDown(this.keyD)) {
+            this.crewSprite.setTexture(`${this.crewTexturePrefix}east`);
+          }
         }
 
         // ---------------------------------------------------------------------------
@@ -772,29 +821,6 @@
               .text(tx(col) + TILE / 2, seatLabelY, seatLetters[i], seatLetterStyle)
               .setOrigin(0.5);
           });
-        }
-
-        // ---------------------------------------------------------------------------
-        // AISLE ARROW — shows player walks DOWN (toward cockpit)
-        // ---------------------------------------------------------------------------
-        drawAisleArrow() {
-          const midRow = TR.cabin + Math.floor(CABIN_ROWS / 2);
-          const ax = tx(TC.aisle) + TILE / 2;
-          const ay = ty(midRow) + TILE / 2;
-
-          const g = this.add.graphics();
-          g.fillStyle(0x999999);
-          g.beginPath();
-          // Small pixel arrow pointing downward
-          g.moveTo(ax, ay + 12);
-          g.lineTo(ax - 6, ay + 2);
-          g.lineTo(ax - 2, ay + 2);
-          g.lineTo(ax - 2, ay - 10);
-          g.lineTo(ax + 2, ay - 10);
-          g.lineTo(ax + 2, ay + 2);
-          g.lineTo(ax + 6, ay + 2);
-          g.closePath();
-          g.fillPath();
         }
       }
 
