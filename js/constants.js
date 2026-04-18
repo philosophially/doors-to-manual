@@ -47,6 +47,21 @@ const SEAT_COLS_LEFT = [TC.seatA, TC.seatB, TC.seatC];
 const SEAT_COLS_RIGHT = [TC.seatD, TC.seatE, TC.seatF];
 const CABIN_ROWS = 8; // rows 1 through 8
 
+/** Occupied-seat request types — full set for future routes (unoccupied: `state: null`). */
+const PAX_STATES = [
+  "sleeping",
+  "nothanks",
+  "oj",
+  "water",
+  "wine",
+  "blanket",
+  "meal",
+  "medical",
+];
+
+/** Jam route SIN → KUL: only these are rolled for `paxMap[].state`. */
+const PAX_STATES_SIN_KUL = ["water", "oj", "sleeping", "nothanks"];
+
 // ---------------------------------------------------------------------------
 // COLOURS
 // ---------------------------------------------------------------------------
@@ -105,6 +120,9 @@ for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
   paxMap[rowNum] = Array.from({ length: 6 }, (_, s) => ({
     occ: occupied.has(s),
     v: ri(0, 3),
+    state: occupied.has(s)
+      ? PAX_STATES_SIN_KUL[ri(0, PAX_STATES_SIN_KUL.length - 1)]
+      : null,
   }));
 }
 

@@ -59,6 +59,15 @@ class CabinScene extends Phaser.Scene {
 
     this.aisleTint = this.add.graphics();
 
+    /** @type {Object.<string, Phaser.GameObjects.Image>} */
+    this.bubbleByKey = {};
+    /**
+     * First of two visible HUD row numbers (1 = cockpit / bottom label "1").
+     * Window shows that row and row+1. Step 4: fixed at 1 (rows 1–2 only).
+     * Step 5: increment by 1 each time a row is fully “solved” (then rows 2–3, 3–4, …).
+     */
+    this.bubbleWindowStartDisplay = 1;
+
     this.playerCol = TC.aisle;
     this.playerRow = TR.cabin + 7;
     this.drawCrew();
@@ -123,6 +132,125 @@ class CabinScene extends Phaser.Scene {
     if (phase === "landing") {
       this.setAisleTint(false);
     }
+    if (phase !== "service") {
+      this.fadeOutAllPassengerBubbles();
+      this.bubbleWindowStartDisplay = 1;
+    }
+  }
+
+  /** Seat index 0–5 → tile column (same order as `drawCabin`). */
+  seatColForSeatIndex(seatIdx) {
+    const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
+    return seatCols[seatIdx];
+  }
+
+  fadeOutAllPassengerBubbles() {
+    const keys = Object.keys(this.bubbleByKey);
+    for (let i = 0; i < keys.length; i++) {
+      const key = keys[i];
+      const spr = this.bubbleByKey[key];
+      if (!spr || !spr.active) {
+        delete this.bubbleByKey[key];
+        continue;
+      }
+      delete this.bubbleByKey[key];
+      this.tweens.killTweensOf(spr);
+      this.tweens.add({
+        targets: spr,
+        alpha: 0,
+        duration: 220,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          if (spr && spr.active) {
+            spr.destroy();
+          }
+        },
+      });
+    }
+  }
+
+  /**
+   * Request bubbles: two HUD cabin rows (`bubbleWindowStartDisplay` and +1).
+   * Step 4: window stays at rows 1–2 regardless of crew position.
+   * Step 5: bump `bubbleWindowStartDisplay` after each row is fully solved, then call this again.
+   * Only in `service` when `serviceEntryComplete`; refreshed on player moves to keep depth/order tidy.
+   */
+  syncPassengerBubbles() {
+    if (this.phase !== "service" || !this.serviceEntryComplete) {
+      return;
+    }
+
+    const desired = new Set();
+    const d0 = this.bubbleWindowStartDisplay;
+    const d1 = d0 + 1;
+    const rowNums = [
+      CABIN_ROWS - d0 + 1,
+      CABIN_ROWS - d1 + 1,
+    ];
+    for (let i = 0; i < rowNums.length; i++) {
+      const rowNum = rowNums[i];
+      for (let seatIdx = 0; seatIdx < 6; seatIdx++) {
+        const seat = paxMap[rowNum][seatIdx];
+        if (!seat.occ || seat.state == null) {
+          continue;
+        }
+        desired.add(`${rowNum}-${seatIdx}`);
+      }
+    }
+
+    const existing = Object.keys(this.bubbleByKey);
+    for (let i = 0; i < existing.length; i++) {
+      const key = existing[i];
+      if (desired.has(key)) {
+        continue;
+      }
+      const spr = this.bubbleByKey[key];
+      delete this.bubbleByKey[key];
+      if (!spr || !spr.active) {
+        continue;
+      }
+      this.tweens.killTweensOf(spr);
+      this.tweens.add({
+        targets: spr,
+        alpha: 0,
+        duration: 220,
+        ease: "Quad.easeIn",
+        onComplete: () => {
+          if (spr && spr.active) {
+            spr.destroy();
+          }
+        },
+      });
+    }
+
+    desired.forEach((key) => {
+      if (this.bubbleByKey[key]) {
+        return;
+      }
+      const dash = key.indexOf("-");
+      const rowNum = Number(key.slice(0, dash));
+      const seatIdx = Number(key.slice(dash + 1));
+      const seat = paxMap[rowNum][seatIdx];
+      const col = this.seatColForSeatIndex(seatIdx);
+      const tileRow = TR.cabin + (rowNum - 1);
+      const cx = tx(col) + TILE / 2;
+      const cy = ty(tileRow) + 4;
+
+      const tex = `bubble_${seat.state}`;
+      const spr = this.add
+        .image(cx, cy, tex)
+        .setOrigin(0.5, 1)
+        .setDepth(100)
+        .setAlpha(0);
+
+      this.bubbleByKey[key] = spr;
+      this.tweens.add({
+        targets: spr,
+        alpha: 1,
+        duration: 220,
+        ease: "Quad.easeOut",
+      });
+    });
   }
 
   syncServiceUnitPositions() {
@@ -170,6 +298,7 @@ class CabinScene extends Phaser.Scene {
       ) {
         this.playerRow -= 1;
         this.syncServiceUnitPositions();
+        this.syncPassengerBubbles();
       }
     }
     if (Phaser.Input.Keyboard.JustDown(this.keyArrowDown)) {
@@ -187,6 +316,7 @@ class CabinScene extends Phaser.Scene {
       } else if (serviceMove && this.playerRow < TR.cabin + 7) {
         this.playerRow += 1;
         this.syncServiceUnitPositions();
+        this.syncPassengerBubbles();
       }
     }
 
@@ -226,6 +356,8 @@ class CabinScene extends Phaser.Scene {
           );
           this.syncServiceUnitPositions();
           this.serviceEntryComplete = true;
+          this.bubbleWindowStartDisplay = 1;
+          this.syncPassengerBubbles();
         },
       });
     }

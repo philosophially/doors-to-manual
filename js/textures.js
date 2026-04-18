@@ -77,5 +77,115 @@ function generateTextures(scene) {
 
   // Passenger and crew sprites are loaded from /sprites/*.png in preload().
 
+  // --- Request bubbles (rounded speech bubble + pixel icon) ---
+  const BUBBLE_W = 38;
+  const BUBBLE_H = 30;
+  const R = 7;
+  const ox = 3;
+  const oy = 2;
+
+  function bubbleFrame() {
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(0, 0, BUBBLE_W, BUBBLE_H, R);
+    g.lineStyle(2, 0xd0d0d0, 1);
+    g.strokeRoundedRect(0, 0, BUBBLE_W, BUBBLE_H, R);
+    // small tail overlapping downward (seat sits below)
+    g.fillStyle(0xffffff, 1);
+    g.fillTriangle(
+      BUBBLE_W / 2 - 5,
+      BUBBLE_H - 2,
+      BUBBLE_W / 2 + 5,
+      BUBBLE_H - 2,
+      BUBBLE_W / 2,
+      BUBBLE_H + 6,
+    );
+    g.lineStyle(2, 0xd0d0d0, 1);
+    g.lineBetween(BUBBLE_W / 2 - 5, BUBBLE_H - 2, BUBBLE_W / 2, BUBBLE_H + 6);
+    g.lineBetween(BUBBLE_W / 2, BUBBLE_H + 6, BUBBLE_W / 2 + 5, BUBBLE_H - 2);
+  }
+
+  function emitBubble(key, drawIcon) {
+    g.clear();
+    bubbleFrame();
+    drawIcon(g, ox, oy);
+    g.generateTexture(key, BUBBLE_W, BUBBLE_H + 6);
+  }
+
+  // sleeping — grey Zs
+  emitBubble("bubble_sleeping", (gg, x, y) => {
+    gg.fillStyle(0x888888, 1);
+    gg.fillRect(x + 8, y + 6, 10, 2);
+    gg.fillRect(x + 14, y + 10, 8, 2);
+    gg.fillRect(x + 20, y + 14, 6, 2);
+  });
+
+  // no thanks — red X
+  emitBubble("bubble_nothanks", (gg, x, y) => {
+    gg.lineStyle(4, 0xcc2222, 1);
+    gg.lineBetween(x + 9, y + 5, x + 25, y + 19);
+    gg.lineBetween(x + 25, y + 5, x + 9, y + 19);
+  });
+
+  // OJ — orange wedge / glass
+  emitBubble("bubble_oj", (gg, x, y) => {
+    gg.fillStyle(0xff8800, 1);
+    gg.fillRect(x + 10, y + 4, 14, 16);
+    gg.fillStyle(0xffcc66, 1);
+    gg.fillRect(x + 12, y + 6, 10, 4);
+    gg.fillStyle(0xffffff, 1);
+    gg.fillRect(x + 13, y + 5, 8, 2);
+  });
+
+  // water — light blue cup
+  emitBubble("bubble_water", (gg, x, y) => {
+    gg.fillStyle(0x4a9eff, 1);
+    gg.fillRect(x + 11, y + 8, 12, 12);
+    gg.fillStyle(0x87ceff, 1);
+    gg.fillRect(x + 13, y + 10, 8, 6);
+    gg.fillStyle(0x2a6ecc, 1);
+    gg.fillRect(x + 14, y + 20, 6, 2);
+  });
+
+  // wine — purple glass + stem
+  emitBubble("bubble_wine", (gg, x, y) => {
+    gg.fillStyle(0x6a2d8a, 1);
+    gg.fillRect(x + 13, y + 5, 10, 12);
+    gg.fillStyle(0x4a1a6a, 1);
+    gg.fillRect(x + 15, y + 7, 6, 6);
+    gg.fillStyle(0x888888, 1);
+    gg.fillRect(x + 17, y + 17, 2, 6);
+    gg.fillRect(x + 15, y + 23, 6, 2);
+  });
+
+  // blanket — blue-grey folded cloth
+  emitBubble("bubble_blanket", (gg, x, y) => {
+    gg.fillStyle(0x6a8aaa, 1);
+    gg.fillRect(x + 8, y + 10, 20, 8);
+    gg.fillStyle(0x8aa0b8, 1);
+    gg.fillRect(x + 10, y + 8, 16, 6);
+    gg.lineStyle(1, 0x4a6080, 1);
+    gg.strokeRect(x + 8, y + 10, 20, 8);
+  });
+
+  // meal — brown tray + dome
+  emitBubble("bubble_meal", (gg, x, y) => {
+    gg.fillStyle(0x8b5a2b, 1);
+    gg.fillRect(x + 7, y + 16, 22, 4);
+    gg.fillStyle(0xc49a6a, 1);
+    gg.fillRect(x + 10, y + 12, 16, 6);
+    gg.fillStyle(0xffffff, 1);
+    gg.fillRect(x + 13, y + 7, 10, 6);
+  });
+
+  // medical — red cross + pulse
+  emitBubble("bubble_medical", (gg, x, y) => {
+    gg.fillStyle(0xdd2222, 1);
+    gg.fillRect(x + 15, y + 4, 4, 16);
+    gg.fillRect(x + 9, y + 10, 16, 4);
+    gg.fillStyle(0xff6666, 1);
+    gg.fillRect(x + 22, y + 5, 3, 3);
+    gg.fillRect(x + 24, y + 3, 2, 2);
+  });
+
   g.destroy();
 }
