@@ -221,11 +221,11 @@ Programmatic textures in `textures.js` (`generateTextures()`): `bubble_sleeping`
 - `#hud-timer` — countdown timer (static 04:00 placeholder, not yet wired)
 - `#hud-score` — score display (SCORE: 0 placeholder)
 - `#hud-phase` — phase label, updated by `setPhase()` in `CabinScene`
-- `#legend-open-btn` — persistent **?** control (below bottom HUD, flush right in `#game-wrapper`); opens full-page legend modal (does not pause Phaser)
-- `#legend-modal` — semi-transparent overlay + beige panel; same legend text as `InstructionsScene`; **CLOSE** / **✕** / backdrop / **Escape** dismiss
+- `#legend-open-btn` — persistent **?** control, absolutely positioned bottom-right **over the Phaser canvas** (`#game-stage`, flush right in the black margin, above the bottom HUD); opens full-page legend modal (does not pause Phaser)
+- `#legend-modal` — semi-transparent overlay + beige panel; same legend text as `InstructionsScene`; **CLOSE** / backdrop / **Escape** dismiss
 
 ## Instructions & legend (Step 4b)
-- **`InstructionsScene`:** Press Start 2P, cabin palette (`#F5F0E8` / `#1B2A4A` / `#00FF7F`), title **DOORS TO MANUAL**, movement / interaction / scoring blocks, **START** (blinks “CLICK TO CONTINUE” like character-select hint tween).
+- **`InstructionsScene`:** Press Start 2P, cabin palette (`#F5F0E8` / `#1B2A4A`); title **DOORS TO MANUAL** in red `#FF4444` (matches HUD “DOORS TO ARMED”); section headers MOVEMENT / INTERACTION / SCORING HINTS in navy `#1B2A4A` (seat colour); **START** (blinks “CLICK TO CONTINUE” like character-select hint tween).
 - **Legend modal:** Pure HTML/CSS/JS in `index.html`; mirrors the same copy; never touches game state.
 
 ---
@@ -243,13 +243,17 @@ Programmatic textures in `textures.js` (`generateTextures()`): `bubble_sleeping`
 
 ## Changelog (records)
 
+### 2026-04-18 — Legend & instructions visual polish
+- **`index.html`:** `?` button moved into `#game-stage` (over canvas, bottom-right); modal title red `#ff4444`, section headers navy `#1b2a4a`; removed modal **✕** button (CLOSE only).
+- **`InstructionsScene.js`:** Title red `#FF4444`; MOVEMENT / INTERACTION / SCORING headers navy `#1B2A4A`.
+
 ### 2026-04-18 — Step 4b cleanup: explicit routing (no `ScenePlugin.start` shim)
 - **`CharacterSelectScene.js`:** Crew `pointerdown` calls `scene.start('InstructionsScene')` instead of `CabinScene`.
 - **`index.html`:** Removed monkey-patch on `Phaser.Scenes.ScenePlugin.prototype.start`; Phaser config + legend modal unchanged.
 
 ### 2026-04-18 — Step 4b: `InstructionsScene` + DOM `?` legend
 - **`js/scenes/InstructionsScene.js`:** New Phaser scene between character select and cabin; START → `CabinScene`.
-- **`index.html`:** Script include + `scene` array order; `#legend-open-btn`, `#legend-modal`, styles, and IIFE for open/close (backdrop, **CLOSE**, **✕**, Escape, body scroll lock). *(Initial build used a `ScenePlugin.start` shim; removed in Step 4b cleanup.)*
+- **`index.html`:** Script include + `scene` array order; `#game-stage` + `#legend-open-btn`, `#legend-modal`, styles, and IIFE for open/close (backdrop, **CLOSE**, Escape, body scroll lock). *(Initial build used a `ScenePlugin.start` shim; removed in Step 4b cleanup.)*
 
 ### 2026-04-18 — Step 4: passenger `state`, request bubbles, SIN–KUL jam pool
 - **`constants.js`:** `paxMap[][].state` on occupied seats; jam build rolls only `PAX_STATES_SIN_KUL` (`water`, `oj`, `sleeping`, `nothanks`); full `PAX_STATES` retained for future routes.

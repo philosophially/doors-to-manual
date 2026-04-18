@@ -48,16 +48,17 @@
         position: relative;
       }
 
-      /* Legend — below bottom HUD, flush right (800px column) */
-      .legend-bar {
+      /* Canvas column: Phaser canvas + ? overlay (bottom-right on black margin, above footer HUD) */
+      .game-stage {
+        position: relative;
         width: 800px;
-        display: flex;
-        justify-content: flex-end;
-        align-items: center;
-        padding: 6px 14px 12px;
         flex-shrink: 0;
       }
-      .legend-bar__btn {
+      .game-stage__legend-btn {
+        position: absolute;
+        right: 14px;
+        bottom: 10px;
+        z-index: 5;
         font-family: "Press Start 2P", monospace;
         font-size: 11px;
         line-height: 1;
@@ -69,8 +70,8 @@
         padding: 0;
         cursor: pointer;
       }
-      .legend-bar__btn:hover,
-      .legend-bar__btn:focus-visible {
+      .game-stage__legend-btn:hover,
+      .game-stage__legend-btn:focus-visible {
         color: #00ff7f;
         outline: none;
       }
@@ -109,7 +110,7 @@
       }
       .legend-modal__title {
         font-size: 16px;
-        color: #00ff7f;
+        color: #ff4444;
         text-align: center;
         margin-bottom: 18px;
         line-height: 1.4;
@@ -119,7 +120,7 @@
       }
       .legend-modal__h {
         font-size: 10px;
-        color: #00ff7f;
+        color: #1b2a4a;
         margin-bottom: 8px;
         letter-spacing: 0.04em;
       }
@@ -133,7 +134,6 @@
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        gap: 12px;
         margin-top: 18px;
         padding-top: 12px;
         border-top: 2px solid #1b2a4a;
@@ -149,19 +149,6 @@
       }
       .legend-modal__close:hover {
         background: #d8d0c8;
-      }
-      .legend-modal__x {
-        font-family: "Press Start 2P", monospace;
-        font-size: 10px;
-        color: #1b2a4a;
-        background: transparent;
-        border: none;
-        cursor: pointer;
-        padding: 8px;
-        line-height: 1;
-      }
-      .legend-modal__x:hover {
-        color: #00ff7f;
       }
 
       /* HUD bars — DOM elements, sit above/below canvas */
@@ -219,23 +206,22 @@
         <span class="hud__timer" id="hud-timer">04:00</span>
       </header>
 
-      <div id="game-container"></div>
-
-      <footer class="hud hud--bottom">
-        <span class="hud__score" id="hud-score">SCORE: 0</span>
-        <span class="hud__phase" id="hud-phase">PHASE: BOARDING</span>
-      </footer>
-
-      <div class="legend-bar">
+      <div id="game-stage" class="game-stage">
+        <div id="game-container"></div>
         <button
           type="button"
-          class="legend-bar__btn"
+          class="game-stage__legend-btn"
           id="legend-open-btn"
           aria-label="Show controls"
         >
           ?
         </button>
       </div>
+
+      <footer class="hud hud--bottom">
+        <span class="hud__score" id="hud-score">SCORE: 0</span>
+        <span class="hud__phase" id="hud-phase">PHASE: BOARDING</span>
+      </footer>
     </div>
 
     <div
@@ -282,9 +268,6 @@
         </div>
 
         <div class="legend-modal__actions">
-          <button type="button" class="legend-modal__x" id="legend-close-x" aria-label="Close">
-            ✕
-          </button>
           <button type="button" class="legend-modal__close" id="legend-close-btn">
             CLOSE
           </button>
@@ -320,7 +303,6 @@
         const modal = document.getElementById("legend-modal");
         const openBtn = document.getElementById("legend-open-btn");
         const closeBtn = document.getElementById("legend-close-btn");
-        const closeX = document.getElementById("legend-close-x");
         const backdrop = document.getElementById("legend-modal-backdrop");
 
         function openModal() {
@@ -340,9 +322,6 @@
         }
         if (closeBtn) {
           closeBtn.addEventListener("click", closeModal);
-        }
-        if (closeX) {
-          closeX.addEventListener("click", closeModal);
         }
         if (backdrop) {
           backdrop.addEventListener("click", closeModal);

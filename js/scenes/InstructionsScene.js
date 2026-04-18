@@ -9,7 +9,7 @@ class InstructionsScene extends Phaser.Scene {
   create() {
     const bg = 0xf5f0e8;
     const ink = "#1B2A4A";
-    const accent = "#00FF7F";
+    const titleRed = "#FF4444";
     const font = '"Press Start 2P"';
     const wrap = CW - 48;
 
@@ -19,7 +19,7 @@ class InstructionsScene extends Phaser.Scene {
       .text(CW / 2, 36, "DOORS TO MANUAL", {
         fontFamily: font,
         fontSize: "18px",
-        color: accent,
+        color: titleRed,
       })
       .setOrigin(0.5);
 
@@ -42,7 +42,7 @@ class InstructionsScene extends Phaser.Scene {
         .text(CW / 2, y, label, {
           fontFamily: font,
           fontSize: headSize,
-          color: accent,
+          color: ink,
         })
         .setOrigin(0.5, 0);
       y += t.height + gapAfterHeader;
