@@ -1,6 +1,6 @@
 # DOORS TO MANUAL — Game Context
 Vibe Jam 2026 | Built with Cursor + Phaser.js 3
-Last updated: April 2026
+Last updated: 18 April 2026
 
 ---
 
@@ -95,7 +95,7 @@ Selected crew set via `window.selectedCrew` in `CharacterSelectScene`.
 
 Movement is tile-by-tile (48px per keypress, JustDown only — no held-key repeat).
 Player always constrained to `TC.aisle` — cannot enter seat columns.
-Both Arrow keys and WASD registered for up/down movement.
+Arrow **Up** / **Down** move the crew along the aisle in `CabinScene` (boarding + service). **W** / **S** change facing only (no tile movement in the current build).
 
 ---
 
@@ -137,6 +137,8 @@ Both Arrow keys and WASD registered for up/down movement.
 | SIN → BKK Medium | 5 min | Drinks + Call Button + Blanket + Meal | 2x moderate (~15 sec each) |
 | SIN → NRT Hard | 6 min | All types + Medical | 3x severe (~20 sec each) |
 
+**Jam build (`constants.js`):** `paxMap` request `state` is rolled only from the **SIN → KUL** pool (`water`, `oj`, `sleeping`, `nothanks`). The full `PAX_STATES` list remains for future routes (BKK/NRT).
+
 ---
 
 ## Passenger States
@@ -151,7 +153,26 @@ Both Arrow keys and WASD registered for up/down movement.
 | Meal | Me | SPACEBAR (BKK/NRT) | Missed: -10 |
 | Medical | !! | SPACEBAR (NRT only) | Missed: -30 |
 
-Bubble reveal: only 4 rows ahead of player's current position visible at any time.
+### `paxMap` seat fields (`constants.js`)
+- `occ` — seat occupied (boolean)
+- `v` — passenger sprite variant `0`–`3`
+- `state` — request type for occupied seats (`null` if unoccupied). Jam: one of `water` | `oj` | `sleeping` | `nothanks` (see **Routes** above).
+
+---
+
+## Request bubbles (service phase)
+
+Programmatic textures in `textures.js` (`generateTextures()`): `bubble_sleeping`, `bubble_nothanks`, `bubble_oj`, `bubble_water`, `bubble_wine`, `bubble_blanket`, `bubble_meal`, `bubble_medical` — white rounded speech bubble with tail + small pixel icon. Jam route only uses the first four keys in play.
+
+**`CabinScene.js`**
+- `this.bubbleByKey` — map of stable keys `"<paxRowNum>-<seatIdx>"` → bubble `Image` instances.
+- `this.bubbleWindowStartDisplay` — first HUD cabin row number (1 = cockpit end, same numbering as row labels on screen) of a **two-row** visible window. The window shows that row and row `+ 1`.
+- **`syncPassengerBubbles()`** — rebuilds desired bubble keys from `paxMap` for the two visible rows only; fades out removed keys, fades in new ones. Runs when `phase === "service"` and `serviceEntryComplete`, after service-entry tween completes, and after aisle moves (so bubble list stays correct).
+- Bubble sprites: `setDepth(100)` (above trolley `10` and crew `20`), origin bottom-centre, slight overlap above seat tops.
+
+**Step 4 (current):** `bubbleWindowStartDisplay` stays **`1`**, so only **HUD rows 1 and 2** ever show bubbles, regardless of crew position along the aisle.
+
+**Step 5 (planned):** When a row is fully “solved” for all relevant seats, increment `bubbleWindowStartDisplay` (cap at `7` so the pair never exceeds rows 7–8), then call `syncPassengerBubbles()`. That yields: after row 1 done → rows **2–3**; after row 2 done → **3–4**; and so on. Crew movement alone must **not** advance the window.
 
 ---
 
@@ -200,9 +221,20 @@ Bubble reveal: only 4 rows ahead of player's current position visible at any tim
 ---
 
 ## Key Technical Notes
-- Draw call order in `create()` must not be reordered: fuselage -> galley -> aisle tiles -> cabin -> cockpit -> aisleTint graphics -> crew sprite -> labels
+- Draw call order in `create()` must not be reordered: fuselage -> galley -> aisle tiles -> cabin -> cockpit -> aisleTint graphics -> crew sprite -> labels (dynamic request bubbles are spawned later at high depth and are not part of this static order)
 - `this.playerCol` is always `TC.aisle` — never changes
 - `this.playerRow` tracks current tile row (integer)
 - `paxMap` seeded (seed 7331) — consistent layout every session, generated in `constants.js`
-- `paxMap[rowNum][seatIdx].occ` = boolean occupied, `.v` = passenger variant (0-3)
-- Row numbering in `paxMap`: keys 1-8 where key 1 = TR.cabin (top cabin row, labelled Row 8 in-game)
+- `paxMap[rowNum][seatIdx]`: `.occ` occupied, `.v` variant `0`–`3`, `.state` request or `null` (see **Request bubbles**)
+- Row numbering in `paxMap`: keys 1–8 where key `1` = `TR.cabin` (top cabin row, **HUD label Row 8**), key `8` = `TR.cabin + 7` (**HUD label Row 1**, cockpit end). HUD row label `D` ↔ `paxMap` key `rowNum = 9 - D` for the eight cabin rows.
+- `setPhase(phase)` when leaving `service` fades all request bubbles and resets `bubbleWindowStartDisplay` to `1`
+
+---
+
+## Changelog (records)
+
+### 2026-04-18 — Step 4: passenger `state`, request bubbles, SIN–KUL jam pool
+- **`constants.js`:** `paxMap[][].state` on occupied seats; jam build rolls only `PAX_STATES_SIN_KUL` (`water`, `oj`, `sleeping`, `nothanks`); full `PAX_STATES` retained for future routes.
+- **`textures.js`:** eight `bubble_*` textures (rounded speech bubble + pixel icon + tail) at end of `generateTextures()`.
+- **`CabinScene.js`:** service-phase request bubbles (`bubbleByKey`, `syncPassengerBubbles`, fade out on leave); `bubbleWindowStartDisplay` two-row window starting at HUD rows **1–2**; window does **not** advance with crew movement (Step 5 will advance after each row is fully solved); bubble depth `100`; `setPhase` resets window and clears bubbles when leaving `service`.
+- **This doc:** Request bubbles section, `paxMap` fields, SIN–KUL jam note, HUD ↔ `paxMap` row mapping, controls note (arrow keys move aisle; W/S face only), technical notes updates, and this changelog.
