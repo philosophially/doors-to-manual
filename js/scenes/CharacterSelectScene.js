@@ -122,7 +122,7 @@ class CharacterSelectScene extends Phaser.Scene {
       });
       z.on("pointerdown", () => {
         window.selectedCrew = key;
-        this.scene.start("CabinScene");
+        this.scene.start("InstructionsScene");
       });
       return z;
     };

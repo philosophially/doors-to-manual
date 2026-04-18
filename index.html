@@ -45,6 +45,123 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        position: relative;
+      }
+
+      /* Legend — below bottom HUD, flush right (800px column) */
+      .legend-bar {
+        width: 800px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        padding: 6px 14px 12px;
+        flex-shrink: 0;
+      }
+      .legend-bar__btn {
+        font-family: "Press Start 2P", monospace;
+        font-size: 11px;
+        line-height: 1;
+        color: #ffffff;
+        background: #1b2a4a;
+        border: 2px solid #000;
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        cursor: pointer;
+      }
+      .legend-bar__btn:hover,
+      .legend-bar__btn:focus-visible {
+        color: #00ff7f;
+        outline: none;
+      }
+
+      /* Full-page controls modal (DOM only — no Phaser) */
+      .legend-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .legend-modal.is-open {
+        display: flex;
+      }
+      .legend-modal__backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+      }
+      .legend-modal__panel {
+        position: relative;
+        z-index: 1;
+        width: 100%;
+        max-width: 720px;
+        max-height: 88vh;
+        overflow: auto;
+        background: #f5f0e8;
+        color: #1b2a4a;
+        font-family: "Press Start 2P", monospace;
+        border: 3px solid #1b2a4a;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+        padding: 22px 26px 20px;
+      }
+      .legend-modal__title {
+        font-size: 16px;
+        color: #00ff7f;
+        text-align: center;
+        margin-bottom: 18px;
+        line-height: 1.4;
+      }
+      .legend-modal__section {
+        margin-bottom: 16px;
+      }
+      .legend-modal__h {
+        font-size: 10px;
+        color: #00ff7f;
+        margin-bottom: 8px;
+        letter-spacing: 0.04em;
+      }
+      .legend-modal__p {
+        font-size: 8px;
+        line-height: 1.65;
+        margin: 0 0 6px;
+        white-space: pre-line;
+      }
+      .legend-modal__actions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 12px;
+        margin-top: 18px;
+        padding-top: 12px;
+        border-top: 2px solid #1b2a4a;
+      }
+      .legend-modal__close {
+        font-family: "Press Start 2P", monospace;
+        font-size: 9px;
+        color: #1b2a4a;
+        background: #e8e0d4;
+        border: 2px solid #1b2a4a;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      .legend-modal__close:hover {
+        background: #d8d0c8;
+      }
+      .legend-modal__x {
+        font-family: "Press Start 2P", monospace;
+        font-size: 10px;
+        color: #1b2a4a;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 8px;
+        line-height: 1;
+      }
+      .legend-modal__x:hover {
+        color: #00ff7f;
       }
 
       /* HUD bars — DOM elements, sit above/below canvas */
@@ -108,10 +225,77 @@
         <span class="hud__score" id="hud-score">SCORE: 0</span>
         <span class="hud__phase" id="hud-phase">PHASE: BOARDING</span>
       </footer>
+
+      <div class="legend-bar">
+        <button
+          type="button"
+          class="legend-bar__btn"
+          id="legend-open-btn"
+          aria-label="Show controls"
+        >
+          ?
+        </button>
+      </div>
     </div>
+
+    <div
+      id="legend-modal"
+      class="legend-modal"
+      aria-hidden="true"
+      role="dialog"
+      aria-labelledby="legend-modal-title"
+    >
+      <div class="legend-modal__backdrop" id="legend-modal-backdrop"></div>
+      <div class="legend-modal__panel">
+        <div class="legend-modal__title" id="legend-modal-title">
+          DOORS TO MANUAL
+        </div>
+
+        <div class="legend-modal__section">
+          <div class="legend-modal__h">MOVEMENT</div>
+          <p class="legend-modal__p">
+            Arrow Up / Down — move along aisle<br />
+            W / A / S / D — rotate crew in place<br />
+            &nbsp;&nbsp;(W: face up, A: left, S: down, D: right)
+          </p>
+        </div>
+
+        <div class="legend-modal__section">
+          <div class="legend-modal__h">INTERACTION</div>
+          <p class="legend-modal__p">
+            ENTER — activate bubble / confirm selection<br />
+            SHIFT — skip sleeping or no-thanks passenger safely<br />
+            Arrow Left / Right — toggle between bubbles on the same side<br />
+            1 / 2 / 3 — select drink (1: OJ, 2: Water, 3: Wine)
+          </p>
+        </div>
+
+        <div class="legend-modal__section">
+          <div class="legend-modal__h">SCORING HINTS</div>
+          <p class="legend-modal__p">
+            Correct drink → +10<br />
+            Wrong drink → -10<br />
+            Wake sleeping passenger → -15<br />
+            Serve no-thanks passenger → -10<br />
+            Correct skip → no penalty
+          </p>
+        </div>
+
+        <div class="legend-modal__actions">
+          <button type="button" class="legend-modal__x" id="legend-close-x" aria-label="Close">
+            ✕
+          </button>
+          <button type="button" class="legend-modal__close" id="legend-close-btn">
+            CLOSE
+          </button>
+        </div>
+      </div>
+    </div>
+
     <script src="js/constants.js"></script>
     <script src="js/textures.js"></script>
     <script src="js/scenes/CharacterSelectScene.js"></script>
+    <script src="js/scenes/InstructionsScene.js"></script>
     <script src="js/scenes/CabinScene.js"></script>
     <script src="js/scenes/WinScene.js"></script>
     <script>
@@ -123,7 +307,7 @@
         pixelArt: true, // disables anti-aliasing — crisp pixel edges
         roundPixels: true, // prevents sub-pixel blurring
         parent: "game-container",
-        scene: [CharacterSelectScene, CabinScene, WinScene],
+        scene: [CharacterSelectScene, InstructionsScene, CabinScene, WinScene],
         scale: {
           mode: Phaser.Scale.FIT,
           autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -131,6 +315,45 @@
       };
 
       const game = new Phaser.Game(config);
+
+      (function setupLegendModal() {
+        const modal = document.getElementById("legend-modal");
+        const openBtn = document.getElementById("legend-open-btn");
+        const closeBtn = document.getElementById("legend-close-btn");
+        const closeX = document.getElementById("legend-close-x");
+        const backdrop = document.getElementById("legend-modal-backdrop");
+
+        function openModal() {
+          modal.classList.add("is-open");
+          modal.setAttribute("aria-hidden", "false");
+          document.body.style.overflow = "hidden";
+        }
+
+        function closeModal() {
+          modal.classList.remove("is-open");
+          modal.setAttribute("aria-hidden", "true");
+          document.body.style.overflow = "";
+        }
+
+        if (openBtn) {
+          openBtn.addEventListener("click", openModal);
+        }
+        if (closeBtn) {
+          closeBtn.addEventListener("click", closeModal);
+        }
+        if (closeX) {
+          closeX.addEventListener("click", closeModal);
+        }
+        if (backdrop) {
+          backdrop.addEventListener("click", closeModal);
+        }
+
+        document.addEventListener("keydown", function (e) {
+          if (e.key === "Escape" && modal.classList.contains("is-open")) {
+            closeModal();
+          }
+        });
+      })();
     </script>
   </body>
 </html>
