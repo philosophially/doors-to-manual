@@ -181,11 +181,34 @@
       .hud__timer {
         color: #ffff44;
       }
+      .hud__timer.is-warning {
+        color: #ff4444;
+        animation: timerPulse 0.6s steps(2, end) infinite;
+      }
       .hud__score {
         color: #00ff7f;
       }
       .hud__phase {
         color: #aaaaaa;
+      }
+      .hint-bar {
+        width: 800px;
+        background: #0f1a2e;
+        color: #d8d8d8;
+        font-size: 9px;
+        padding: 8px 12px;
+        letter-spacing: 0.03em;
+        text-align: center;
+        border-top: 2px solid #000;
+      }
+      @keyframes timerPulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.55;
+        }
       }
 
       /* Phaser mounts its canvas here */
@@ -201,9 +224,9 @@
   <body>
     <div id="game-wrapper">
       <header class="hud hud--top">
-        <span class="hud__armed">DOORS TO ARMED</span>
-        <span class="hud__route">SIN → KUL</span>
-        <span class="hud__timer" id="hud-timer">04:00</span>
+        <span class="hud__armed" id="hud-armed">DOORS TO ARMED</span>
+        <span class="hud__route" id="hud-route">SIN → KUL</span>
+        <span class="hud__timer" id="hud-timer">10:00</span>
       </header>
 
       <div id="game-stage" class="game-stage">
@@ -222,6 +245,7 @@
         <span class="hud__score" id="hud-score">SCORE: 0</span>
         <span class="hud__phase" id="hud-phase">PHASE: BOARDING</span>
       </footer>
+      <div class="hint-bar" id="hint-bar">SPACEBAR — Begin service</div>
     </div>
 
     <div
@@ -240,30 +264,30 @@
         <div class="legend-modal__section">
           <div class="legend-modal__h">MOVEMENT</div>
           <p class="legend-modal__p">
-            Arrow Up / Down — move along aisle<br />
-            W / A / S / D — rotate crew in place<br />
-            &nbsp;&nbsp;(W: face up, A: left, S: down, D: right)
+            Arrow Up / Down or W / S — move along aisle<br />
+            A / D — face seats (A: D/E/F, D: A/B/C)<br />
+            Arrow Left / Right — select seat in current row
           </p>
         </div>
 
         <div class="legend-modal__section">
           <div class="legend-modal__h">INTERACTION</div>
           <p class="legend-modal__p">
-            ENTER — activate bubble / confirm selection<br />
-            SHIFT — skip sleeping or no-thanks passenger safely<br />
-            Arrow Left / Right — toggle between bubbles on the same side<br />
-            1 / 2 / 3 — select drink (1: OJ, 2: Water, 3: Wine)
+            SPACEBAR — start/open interaction<br />
+            ESC — cancel/deselect<br />
+            SHIFT — skip (service/collection) or reset accidental call button<br />
+            1/2/3 drinks, 4/5 meals, C collect, F fetch, G serve, R reset
           </p>
         </div>
 
         <div class="legend-modal__section">
           <div class="legend-modal__h">SCORING HINTS</div>
           <p class="legend-modal__p">
-            Correct drink → +10<br />
-            Wrong drink → -10<br />
+            Correct drink/meal → +10 each (combo +20)<br />
+            Wrong service item → -10 per item<br />
             Wake sleeping passenger → -15<br />
-            Serve no-thanks passenger → -10<br />
-            Correct skip → no penalty
+            Missed collection item → -5<br />
+            Call button unresolved at landing → -12 each
           </p>
         </div>
 

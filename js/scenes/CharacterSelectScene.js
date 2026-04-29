@@ -17,6 +17,7 @@ class CharacterSelectScene extends Phaser.Scene {
 
   create() {
     this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
+    window.selectedRoute = window.selectedRoute || "KUL";
 
     // Shared vertical rhythm: same gap above boxes (under subtitle) and below labels (above hint)
     const rowGap = 20;
@@ -129,7 +130,7 @@ class CharacterSelectScene extends Phaser.Scene {
     makeZone(leftCx, "female");
     makeZone(rightCx, "male");
 
-    // “CLICK TO START” — same size as subtitle; gap under FEMALE/MALE = rowGap * 2 (matches subtitle→boxes)
+    // “CLICK TO START”
     const labelTopY = boxTopY + boxH + 12;
     const labelApproxH = 18; // ~11px PS2P line + stroke
     const hintTopY = labelTopY + labelApproxH + rowGap * 2;

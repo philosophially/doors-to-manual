@@ -157,34 +157,44 @@ function generateTextures(scene) {
     gg.fillRect(x + 15, y + 23, 6, 2);
   });
 
-  // blanket — blue-grey folded cloth
-  emitBubble("bubble_blanket", (gg, x, y) => {
-    gg.fillStyle(0x6a8aaa, 1);
-    gg.fillRect(x + 8, y + 10, 20, 8);
-    gg.fillStyle(0x8aa0b8, 1);
-    gg.fillRect(x + 10, y + 8, 16, 6);
-    gg.lineStyle(1, 0x4a6080, 1);
-    gg.strokeRect(x + 8, y + 10, 20, 8);
-  });
-
-  // meal — brown tray + dome
-  emitBubble("bubble_meal", (gg, x, y) => {
-    gg.fillStyle(0x8b5a2b, 1);
-    gg.fillRect(x + 7, y + 16, 22, 4);
-    gg.fillStyle(0xc49a6a, 1);
-    gg.fillRect(x + 10, y + 12, 16, 6);
+  // pad thai — noodle box
+  emitBubble("bubble_padthai", (gg, x, y) => {
+    gg.fillStyle(0xc77a2f, 1);
+    gg.fillRect(x + 9, y + 8, 18, 12);
+    gg.fillStyle(0xe9b76d, 1);
+    gg.fillRect(x + 11, y + 10, 14, 4);
     gg.fillStyle(0xffffff, 1);
-    gg.fillRect(x + 13, y + 7, 10, 6);
+    gg.fillRect(x + 12, y + 6, 12, 2);
   });
 
-  // medical — red cross + pulse
-  emitBubble("bubble_medical", (gg, x, y) => {
-    gg.fillStyle(0xdd2222, 1);
-    gg.fillRect(x + 15, y + 4, 4, 16);
-    gg.fillRect(x + 9, y + 10, 16, 4);
-    gg.fillStyle(0xff6666, 1);
-    gg.fillRect(x + 22, y + 5, 3, 3);
-    gg.fillRect(x + 24, y + 3, 2, 2);
+  // chicken rice — plate with protein and rice
+  emitBubble("bubble_chickenrice", (gg, x, y) => {
+    gg.fillStyle(0xffffff, 1);
+    gg.fillRect(x + 9, y + 11, 20, 8);
+    gg.fillStyle(0xf0d0a0, 1);
+    gg.fillRect(x + 12, y + 12, 6, 6);
+    gg.fillStyle(0xe7e7e7, 1);
+    gg.fillRect(x + 20, y + 12, 6, 6);
+  });
+
+  // yakisoba — dark noodle tray
+  emitBubble("bubble_yakisoba", (gg, x, y) => {
+    gg.fillStyle(0x603b20, 1);
+    gg.fillRect(x + 8, y + 10, 22, 10);
+    gg.fillStyle(0xc08b4c, 1);
+    gg.fillRect(x + 10, y + 12, 18, 4);
+    gg.fillStyle(0x9fd76a, 1);
+    gg.fillRect(x + 11, y + 8, 16, 2);
+  });
+
+  // fish with potatoes — fish filet + side
+  emitBubble("bubble_fishpotatoes", (gg, x, y) => {
+    gg.fillStyle(0x78a8d8, 1);
+    gg.fillRect(x + 9, y + 11, 12, 7);
+    gg.fillStyle(0xe0c080, 1);
+    gg.fillRect(x + 22, y + 11, 7, 7);
+    gg.fillStyle(0xffffff, 1);
+    gg.fillRect(x + 10, y + 13, 8, 2);
   });
 
   g.destroy();

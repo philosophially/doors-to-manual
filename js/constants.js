@@ -1,70 +1,38 @@
-// =============================================================================
-// DOORS TO MANUAL — Cabin Scene (Phaser.js 3)
-// Engine: Phaser 3 | Canvas: 800×(grid + thin margin) | Portrait
-// =============================================================================
-
-// ---------------------------------------------------------------------------
-// CONSTANTS — grid geometry (matches vanilla JS version for continuity)
-// ---------------------------------------------------------------------------
 const CW = 800;
 const TILE = 48;
-
-// Grid: 9 cols × 12 rows = 432×576px
-// Layout: 3 left seats | 1 aisle | 3 right seats | 2 fuselage walls
-const GRID_COLS = 9,
-  GRID_ROWS = 12;
-const GRID_W = GRID_COLS * TILE; // 432
-const GRID_H = GRID_ROWS * TILE; // 576
-// Snug canvas height — only a small margin above/below the grid (avoids large black bands in-canvas)
+const GRID_COLS = 9;
+const GRID_ROWS = 12;
+const GRID_W = GRID_COLS * TILE;
+const GRID_H = GRID_ROWS * TILE;
 const CANVAS_V_MARGIN = 8;
 const CH = GRID_H + CANVAS_V_MARGIN * 2;
 const OX = Math.floor((CW - GRID_W) / 2);
 const OY = CANVAS_V_MARGIN;
 
-// Tile row indices (top → bottom)
 const TR = {
-  fuseTop: 0, // fuselage top wall
-  galley: 1, // galley zone (TOP — player spawns here)
-  cabin: 2, // first cabin row (row 1); rows 2–8 follow sequentially
-  cockpit: 10, // cockpit door (BOTTOM)
-  fuseBot: 11, // fuselage bottom wall
+  fuseTop: 0,
+  galley: 1,
+  cabin: 2,
+  cockpit: 10,
+  fuseBot: 11,
 };
 
-// Tile col indices (left → right)
 const TC = {
-  fuseLeft: 0, // fuselage left wall
-  seatA: 1, // left window seat
-  seatB: 2, // left middle seat
-  seatC: 3, // left aisle seat
-  aisle: 4, // centre aisle
-  seatD: 5, // right aisle seat
-  seatE: 6, // right middle seat
-  seatF: 7, // right window seat
-  fuseRight: 8, // fuselage right wall
+  fuseLeft: 0,
+  seatA: 1,
+  seatB: 2,
+  seatC: 3,
+  aisle: 4,
+  seatD: 5,
+  seatE: 6,
+  seatF: 7,
+  fuseRight: 8,
 };
 
 const SEAT_COLS_LEFT = [TC.seatA, TC.seatB, TC.seatC];
 const SEAT_COLS_RIGHT = [TC.seatD, TC.seatE, TC.seatF];
-const CABIN_ROWS = 8; // rows 1 through 8
+const CABIN_ROWS = 8;
 
-/** Occupied-seat request types — full set for future routes (unoccupied: `state: null`). */
-const PAX_STATES = [
-  "sleeping",
-  "nothanks",
-  "oj",
-  "water",
-  "wine",
-  "blanket",
-  "meal",
-  "medical",
-];
-
-/** Jam route SIN → KUL: only these are rolled for `paxMap[].state`. */
-const PAX_STATES_SIN_KUL = ["water", "oj", "sleeping", "nothanks"];
-
-// ---------------------------------------------------------------------------
-// COLOURS
-// ---------------------------------------------------------------------------
 const C = {
   bg: 0x111111,
   fuselage: 0xe8e4dc,
@@ -80,55 +48,135 @@ const C = {
   cockpitFill: 0x0f1a2e,
   cockpitAccent: 0x1b2a4a,
   galleyFill: 0xbbbbbb,
-  galleyUnit: 0x999999,
-  galleyTop: 0xaaaaaa,
-  // Passenger variants (muted so crew pops)
-  paxSkins: [0xd4a882, 0xc8956a, 0xe8c9a0, 0xb07850],
-  paxBodies: [0x8a8fa0, 0x7a8a70, 0x9a8878, 0x707890],
-  paxHairs: [0x2a2018, 0x111111, 0x503820, 0x182018],
-  // Crew
   crewBody: 0x00ff7f,
   crewSkin: 0xf5c5a0,
   crewHair: 0x111111,
   crewAccent: 0xffd700,
 };
 
-// ---------------------------------------------------------------------------
-// SEEDED PRNG — consistent layout each session
-// ---------------------------------------------------------------------------
-let _s = 7331;
-function rand() {
-  _s = (_s * 1664525 + 1013904223) >>> 0;
-  return _s / 0xffffffff;
-}
-function ri(a, b) {
-  return a + Math.floor(rand() * (b - a + 1));
-}
+const ROUTES = {
+  KUL: {
+    key: "KUL",
+    label: "SIN → KUL",
+    difficulty: "EASY",
+    timerSeconds: 600,
+    drinks: ["oj", "water", "wine"],
+    meals: [],
+    turbulence: [{ elapsedSec: 120, severity: "mild", durationSec: 10 }],
+  },
+  BKK: {
+    key: "BKK",
+    label: "SIN → BKK",
+    difficulty: "MEDIUM",
+    timerSeconds: 600,
+    drinks: ["oj", "water", "wine"],
+    meals: ["padthai", "chickenrice"],
+    turbulence: [
+      { elapsedSec: 120, severity: "mild", durationSec: 10 },
+      { elapsedSec: 240, severity: "mild", durationSec: 10 },
+    ],
+  },
+  NRT: {
+    key: "NRT",
+    label: "SIN → NRT",
+    difficulty: "HARD",
+    timerSeconds: 600,
+    drinks: ["oj", "water", "wine"],
+    meals: ["yakisoba", "fishpotatoes"],
+    turbulence: [
+      { elapsedSec: 120, severity: "moderate", durationSec: 15 },
+      { elapsedSec: 240, severity: "moderate", durationSec: 15 },
+    ],
+  },
+};
 
-// ---------------------------------------------------------------------------
-// PASSENGER MAP — random 3–5 occupied seats per cabin row
-// ---------------------------------------------------------------------------
-const paxMap = {};
-for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
-  const total = ri(3, 5);
-  const indices = [0, 1, 2, 3, 4, 5];
-  for (let i = 5; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [indices[i], indices[j]] = [indices[j], indices[i]];
+const SERVICE_POINTS = {
+  drink: 10,
+  meal: 10,
+  combo: 20,
+  wrongItem: -10,
+  sleepingWake: -15,
+  noThanksForce: -10,
+};
+
+const SCORE_RULES = {
+  collectionGood: 3,
+  collectionMiss: -5,
+  callCorrect: 15,
+  callWrong: -5,
+  callReset: 5,
+  callUnresolved: -12,
+  turbulenceSpill: -8,
+};
+
+function buildStatePool(routeKey) {
+  const route = ROUTES[routeKey] || ROUTES.KUL;
+  const drinks = route.drinks.slice();
+  if (!route.meals.length) {
+    return [
+      "oj",
+      "water",
+      "wine",
+      "oj",
+      "water",
+      "wine",
+      "sleeping",
+      "nothanks",
+    ];
   }
-  const occupied = new Set(indices.slice(0, total));
-  paxMap[rowNum] = Array.from({ length: 6 }, (_, s) => ({
-    occ: occupied.has(s),
-    v: ri(0, 3),
-    state: occupied.has(s)
-      ? PAX_STATES_SIN_KUL[ri(0, PAX_STATES_SIN_KUL.length - 1)]
-      : null,
-  }));
+
+  const singles = drinks.concat(route.meals);
+  const combos = [];
+  for (let i = 0; i < drinks.length; i++) {
+    for (let j = 0; j < route.meals.length; j++) {
+      combos.push(`${drinks[i]}+${route.meals[j]}`);
+    }
+  }
+  return combos.concat(singles, singles, ["sleeping", "nothanks"]);
 }
 
-// ---------------------------------------------------------------------------
-// HELPER — pixel coordinate from tile col/row
-// ---------------------------------------------------------------------------
+function createRng(seed) {
+  let s = seed >>> 0;
+  return {
+    next() {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 0xffffffff;
+    },
+    ri(a, b) {
+      return a + Math.floor(this.next() * (b - a + 1));
+    },
+  };
+}
+
+function buildPaxMap(routeKey) {
+  const pool = buildStatePool(routeKey);
+  const rng = createRng(7331);
+  const map = {};
+  for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
+    const total = rng.ri(3, 5);
+    const indices = [0, 1, 2, 3, 4, 5];
+    for (let i = 5; i > 0; i--) {
+      const j = Math.floor(rng.next() * (i + 1));
+      const tmp = indices[i];
+      indices[i] = indices[j];
+      indices[j] = tmp;
+    }
+    const occupied = new Set(indices.slice(0, total));
+    map[rowNum] = Array.from({ length: 6 }, (_, seatIdx) => {
+      const occ = occupied.has(seatIdx);
+      return {
+        occ,
+        v: rng.ri(0, 3),
+        state: occ ? pool[rng.ri(0, pool.length - 1)] : null,
+        served: false,
+        hasCup: false,
+        cupCollected: false,
+      };
+    });
+  }
+  return map;
+}
+
 function tx(col) {
   return OX + col * TILE;
 }
