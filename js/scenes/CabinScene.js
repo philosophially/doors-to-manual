@@ -131,8 +131,12 @@ class CabinScene extends Phaser.Scene {
 
   handleMovement() {
     const k = this.keyMap;
-    const moveUp = Phaser.Input.Keyboard.JustDown(k.up) || Phaser.Input.Keyboard.JustDown(k.w);
-    const moveDown = Phaser.Input.Keyboard.JustDown(k.down) || Phaser.Input.Keyboard.JustDown(k.s);
+    const moveUp =
+      Phaser.Input.Keyboard.JustDown(k.up) ||
+      Phaser.Input.Keyboard.JustDown(k.w);
+    const moveDown =
+      Phaser.Input.Keyboard.JustDown(k.down) ||
+      Phaser.Input.Keyboard.JustDown(k.s);
     let moved = false;
     if (moveUp && this.playerRow > TR.galley) {
       this.playerRow -= 1;
@@ -141,7 +145,11 @@ class CabinScene extends Phaser.Scene {
     }
     if (moveDown && this.playerRow < TR.cabin + 7) {
       this.playerRow += 1;
-      if (this.phase === "service" || this.phase === "collection" || this.phase === "callbutton") {
+      if (
+        this.phase === "service" ||
+        this.phase === "collection" ||
+        this.phase === "callbutton"
+      ) {
         this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
       } else {
         this.crewSprite.setTexture(`${this.crewTexturePrefix}south`);
@@ -276,7 +284,11 @@ class CabinScene extends Phaser.Scene {
     const req = seat.state.split("+");
     if (req.length === 1) {
       if (req[0] === chosen) {
-        this.updateScore(req[0] === "oj" || req[0] === "water" || req[0] === "wine" ? SERVICE_POINTS.drink : SERVICE_POINTS.meal);
+        this.updateScore(
+          req[0] === "oj" || req[0] === "water" || req[0] === "wine"
+            ? SERVICE_POINTS.drink
+            : SERVICE_POINTS.meal,
+        );
         seat.served = true;
         seat.hasCup = true;
         this.promptState = null;
@@ -342,7 +354,10 @@ class CabinScene extends Phaser.Scene {
       return;
     }
     if (task.scenario === "B") {
-      if (Phaser.Input.Keyboard.JustDown(k.r) || Phaser.Input.Keyboard.JustDown(k.shift)) {
+      if (
+        Phaser.Input.Keyboard.JustDown(k.r) ||
+        Phaser.Input.Keyboard.JustDown(k.shift)
+      ) {
         task.resolved = true;
         this.updateScore(SCORE_RULES.callReset);
       }
@@ -423,16 +438,19 @@ class CabinScene extends Phaser.Scene {
     }
     const rowNum = this.getCurrentRowNum();
     if (rowNum < 1 || rowNum > CABIN_ROWS) return [];
-    const arr = this.facing === "east" ? [0, 1, 2] : [3, 4, 5];
+    const arr = this.facing === "east" ? [3, 4, 5] : [0, 1, 2];
     const result = [];
     for (let i = 0; i < arr.length; i++) {
       const idx = arr[i];
       const seat = this.paxMap[rowNum][idx];
       if (!seat.occ) continue;
       if (this.phase === "service" && !seat.served) result.push(idx);
-      if (this.phase === "collection" && seat.hasCup && !seat.cupCollected) result.push(idx);
+      if (this.phase === "collection" && seat.hasCup && !seat.cupCollected)
+        result.push(idx);
       if (this.phase === "callbutton") {
-        const task = this.callTasks.find((t) => t.rowNum === rowNum && t.seatIdx === idx && !t.resolved);
+        const task = this.callTasks.find(
+          (t) => t.rowNum === rowNum && t.seatIdx === idx && !t.resolved,
+        );
         if (task) result.push(idx);
       }
     }
@@ -449,7 +467,10 @@ class CabinScene extends Phaser.Scene {
       }
       return;
     }
-    const current = this.phase === "service" ? this.selectedServiceTarget : this.selectedSeatIdx;
+    const current =
+      this.phase === "service"
+        ? this.selectedServiceTarget
+        : this.selectedSeatIdx;
     let i = seats.indexOf(current);
     if (i < 0) i = 0;
     i = Phaser.Math.Wrap(i + delta, 0, seats.length);
@@ -497,9 +518,9 @@ class CabinScene extends Phaser.Scene {
       return [];
     }
     // Control contract:
-    // A => face WEST => target D/E/F (seatIdx 3/4/5)
-    // D => face EAST => target A/B/C (seatIdx 0/1/2)
-    const side = this.facing === "west" ? [3, 4, 5] : [0, 1, 2];
+    // A => face WEST => target D/E/F (seatIdx 0/1/2, left cols F/E/D)
+    // D => face EAST => target A/B/C (seatIdx 3/4/5, right cols C/B/A)
+    const side = this.facing === "west" ? [0, 1, 2] : [3, 4, 5];
     const targets = [];
     for (let s = 0; s < side.length; s++) {
       const seatIdx = side[s];
@@ -545,7 +566,9 @@ class CabinScene extends Phaser.Scene {
 
   startServicePhase() {
     if (!this.trolley) {
-      this.trolley = this.add.image(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4, "trolley").setDepth(10);
+      this.trolley = this.add
+        .image(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4, "trolley")
+        .setDepth(10);
     }
     this.setPhase("service");
     this.startTimer();
@@ -607,15 +630,18 @@ class CabinScene extends Phaser.Scene {
     const txt = allServed
       ? "Great job! Time to collect back what we have served out."
       : "Please buck up on your service speed for the next flight.";
-    const popup = this.add.text(CW / 2, CH / 2, txt, {
-      fontFamily: '"Press Start 2P"',
-      fontSize: "9px",
-      color: "#1b2a4a",
-      backgroundColor: "#f5f0e8",
-      padding: { x: 12, y: 10 },
-      align: "center",
-      wordWrap: { width: 600 },
-    }).setOrigin(0.5).setDepth(300);
+    const popup = this.add
+      .text(CW / 2, CH / 2, txt, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "9px",
+        color: "#1b2a4a",
+        backgroundColor: "#f5f0e8",
+        padding: { x: 12, y: 10 },
+        align: "center",
+        wordWrap: { width: 600 },
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
     this.serviceEntryComplete = false;
     this.time.delayedCall(2800, () => {
       popup.destroy();
@@ -627,7 +653,11 @@ class CabinScene extends Phaser.Scene {
     this.setPhase("collection");
     this.selectedSeatIdx = null;
     this.promptState = null;
-    if (this.trolley) this.trolley.setPosition(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4);
+    if (this.trolley)
+      this.trolley.setPosition(
+        tx(TC.aisle) + TILE / 2,
+        ty(TR.galley) + TILE / 2 + 4,
+      );
   }
 
   finishCollectionPhase() {
@@ -656,7 +686,8 @@ class CabinScene extends Phaser.Scene {
     for (let r = 1; r <= CABIN_ROWS; r++) {
       for (let s = 0; s < 6; s++) {
         const seat = this.paxMap[r][s];
-        if (seat.occ && seat.served) servedSeats.push({ rowNum: r, seatIdx: s });
+        if (seat.occ && seat.served)
+          servedSeats.push({ rowNum: r, seatIdx: s });
       }
     }
     Phaser.Utils.Array.Shuffle(servedSeats);
@@ -671,12 +702,20 @@ class CabinScene extends Phaser.Scene {
 
   getCurrentCallTask() {
     const rowNum = this.getCurrentRowNum();
-    return this.callTasks.find((t) => t.rowNum === rowNum && t.seatIdx === this.selectedSeatIdx && !t.resolved) || null;
+    return (
+      this.callTasks.find(
+        (t) =>
+          t.rowNum === rowNum &&
+          t.seatIdx === this.selectedSeatIdx &&
+          !t.resolved,
+      ) || null
+    );
   }
 
   finishCallbuttonPhase() {
     for (let i = 0; i < this.callTasks.length; i++) {
-      if (!this.callTasks[i].resolved) this.updateScore(SCORE_RULES.callUnresolved);
+      if (!this.callTasks[i].resolved)
+        this.updateScore(SCORE_RULES.callUnresolved);
     }
     this.setPhase("landing");
     this.startLandingSequence();
@@ -748,19 +787,37 @@ class CabinScene extends Phaser.Scene {
     const el = document.getElementById("hint-bar");
     if (!el) return;
     if (this.phase === "idle") el.textContent = "SPACEBAR — Begin service";
-    else if (this.phase === "service" && this.promptState !== "service") el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
+    else if (this.phase === "service" && this.promptState !== "service")
+      el.textContent =
+        "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
     else if (this.phase === "service" && this.promptState === "service") {
-      const meal = this.routeKey === "KUL" ? "" : this.routeKey === "BKK" ? " | 4 Pad Thai | 5 Chicken Rice" : " | 4 Yakisoba | 5 Fish w/ Potatoes";
+      const meal =
+        this.routeKey === "KUL"
+          ? ""
+          : this.routeKey === "BKK"
+            ? " | 4 Pad Thai | 5 Chicken Rice"
+            : " | 4 Yakisoba | 5 Fish w/ Potatoes";
       el.textContent = `1 OJ | 2 Water | 3 Wine${meal}`;
-    } else if (this.phase === "collection") el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
-    else if (this.phase === "callbutton") el.textContent = "F — Fetch from galley | G — Serve | R or SHIFT — Reset call button | ESC — Cancel";
-    else if (this.phase === "landing") el.textContent = "Cabin checked and ready for landing...";
+    } else if (this.phase === "collection")
+      el.textContent =
+        "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
+    else if (this.phase === "callbutton")
+      el.textContent =
+        "F — Fetch from galley | G — Serve | R or SHIFT — Reset call button | ESC — Cancel";
+    else if (this.phase === "landing")
+      el.textContent = "Cabin checked and ready for landing...";
   }
 
   syncCrewPosition() {
-    this.crewSprite.setPosition(tx(TC.aisle) + TILE / 2, ty(this.playerRow) + TILE / 2);
+    this.crewSprite.setPosition(
+      tx(TC.aisle) + TILE / 2,
+      ty(this.playerRow) + TILE / 2,
+    );
     if (this.phase === "service" && this.trolley) {
-      this.trolley.setPosition(tx(TC.aisle) + TILE / 2, ty(this.playerRow - 1) + TILE / 2 + 4);
+      this.trolley.setPosition(
+        tx(TC.aisle) + TILE / 2,
+        ty(this.playerRow - 1) + TILE / 2 + 4,
+      );
     }
   }
 
@@ -786,12 +843,15 @@ class CabinScene extends Phaser.Scene {
     if (this.phase !== "service") return;
     const desired = new Set();
     const d0 = this.bubbleWindowStartDisplay;
-    const rows = [9 - d0, 9 - (d0 + 1)].filter((r) => r >= 1 && r <= CABIN_ROWS);
+    const rows = [9 - d0, 9 - (d0 + 1)].filter(
+      (r) => r >= 1 && r <= CABIN_ROWS,
+    );
     for (let i = 0; i < rows.length; i++) {
       const rowNum = rows[i];
       for (let seatIdx = 0; seatIdx < 6; seatIdx++) {
         const seat = this.paxMap[rowNum][seatIdx];
-        if (seat.occ && !seat.served && seat.state) desired.add(`${rowNum}-${seatIdx}`);
+        if (seat.occ && !seat.served && seat.state)
+          desired.add(`${rowNum}-${seatIdx}`);
       }
     }
     const keys = Object.keys(this.bubbleByKey);
@@ -801,7 +861,10 @@ class CabinScene extends Phaser.Scene {
         delete this.bubbleByKey[keys[i]];
       }
     }
-    if (this.selectedServiceTarget && !desired.has(this.selectedServiceTarget)) {
+    if (
+      this.selectedServiceTarget &&
+      !desired.has(this.selectedServiceTarget)
+    ) {
       this.selectedServiceTarget = null;
     }
     desired.forEach((key) => {
@@ -812,7 +875,10 @@ class CabinScene extends Phaser.Scene {
       const seat = this.paxMap[rowNum][seatIdx];
       const col = this.seatColForSeatIndex(seatIdx);
       const tex = `bubble_${seat.state.split("+")[0]}`;
-      const img = this.add.image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 4, tex).setOrigin(0.5, 1).setDepth(100);
+      const img = this.add
+        .image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 4, tex)
+        .setOrigin(0.5, 1)
+        .setDepth(100);
       this.bubbleByKey[key] = img;
     });
     const allKeys = Object.keys(this.bubbleByKey);
@@ -828,7 +894,11 @@ class CabinScene extends Phaser.Scene {
 
   drawAisle() {
     for (let r = 0; r < CABIN_ROWS; r++) {
-      this.add.image(tx(TC.aisle) + TILE / 2, ty(TR.cabin + r) + TILE / 2, "aisle_tile");
+      this.add.image(
+        tx(TC.aisle) + TILE / 2,
+        ty(TR.cabin + r) + TILE / 2,
+        "aisle_tile",
+      );
     }
   }
 
@@ -838,11 +908,7 @@ class CabinScene extends Phaser.Scene {
   drawFuselage() {
     // Left + right fuselage walls for all rows
     for (let r = 0; r < GRID_ROWS; r++) {
-      this.add.image(
-        tx(TC.fuseLeft) + TILE / 2,
-        ty(r) + TILE / 2,
-        "fuse_wall",
-      );
+      this.add.image(tx(TC.fuseLeft) + TILE / 2, ty(r) + TILE / 2, "fuse_wall");
       this.add.image(
         tx(TC.fuseRight) + TILE / 2,
         ty(r) + TILE / 2,
@@ -852,11 +918,7 @@ class CabinScene extends Phaser.Scene {
 
     // Top + bottom fuselage walls across full width
     for (let c = 0; c < GRID_COLS; c++) {
-      this.add.image(
-        tx(c) + TILE / 2,
-        ty(TR.fuseTop) + TILE / 2,
-        "fuse_wall",
-      );
+      this.add.image(tx(c) + TILE / 2, ty(TR.fuseTop) + TILE / 2, "fuse_wall");
       this.add
         .image(tx(c) + TILE / 2, ty(TR.fuseBot) + TILE / 2, "fuse_wall")
         .setFlipY(true);
@@ -890,12 +952,7 @@ class CabinScene extends Phaser.Scene {
         const cy = ty(tileRow) + TILE / 2;
         const seat = this.paxMap[rowNum][seatIdx];
 
-        seatBg.fillRect(
-          tx(col) + 2,
-          ty(tileRow) + 2,
-          TILE - 4,
-          TILE - 4,
-        );
+        seatBg.fillRect(tx(col) + 2, ty(tileRow) + 2, TILE - 4, TILE - 4);
         if (seat.occ) {
           this.add
             .image(cx, cy, `pax-${seat.v}-south`)
@@ -949,12 +1006,8 @@ class CabinScene extends Phaser.Scene {
     // Portholes on cockpit door
     const doorCx = x0 + w / 2;
     const doorCy = y0 + h / 2;
-    this.add
-      .image(doorCx - 26, doorCy, "porthole")
-      .setScale(1);
-    this.add
-      .image(doorCx + 26, doorCy, "porthole")
-      .setScale(1);
+    this.add.image(doorCx - 26, doorCy, "porthole").setScale(1);
+    this.add.image(doorCx + 26, doorCy, "porthole").setScale(1);
 
     // COCKPIT label — larger + stroke so it reads on dark blue
     this.add
@@ -974,11 +1027,7 @@ class CabinScene extends Phaser.Scene {
   drawGalley() {
     // Fill galley row across cols 1–7
     for (let c = TC.seatA; c <= TC.seatF; c++) {
-      this.add.image(
-        tx(c) + TILE / 2,
-        ty(TR.galley) + TILE / 2,
-        "galley_fill",
-      );
+      this.add.image(tx(c) + TILE / 2, ty(TR.galley) + TILE / 2, "galley_fill");
     }
 
     const g = this.add.graphics();
@@ -1061,12 +1110,15 @@ class CabinScene extends Phaser.Scene {
     }
 
     // Seat letters above cabin (A B C | D E F)
-    const seatLetters = ["A", "B", "C", "D", "E", "F"];
+    const seatLetters = ["F", "E", "D", "C", "B", "A"];
     const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
-    const seatLabelY = ty(TR.cabin) - 10;
+    const seatLabelY = ty(TR.cabin) - 12;
     const seatLetterStyle = {
-      ...labelStyle,
-      color: "#cccccc",
+      fontFamily: '"Press Start 2P"',
+      fontSize: "8px",
+      color: "#ffffff",
+      stroke: "#000000",
+      strokeThickness: 2,
     };
     seatCols.forEach((col, i) => {
       this.add
