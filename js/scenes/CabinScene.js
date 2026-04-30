@@ -38,13 +38,13 @@ class CabinScene extends Phaser.Scene {
     // FIX — Issue 3: Reset all persistent DOM HUD elements on every new game.
     // The #hud-timer "is-warning" CSS class (red/pulsing) is only ever added,
     // never removed — so it carries over into subsequent playthroughs.
-    // We also reset the text content to 10:00 since Phaser scene restarts do
+    // We also reset the text content to 05:00 since Phaser scene restarts do
     // not touch DOM elements outside the canvas.
     // -------------------------------------------------------------------------
     const timerEl = document.getElementById("hud-timer");
     if (timerEl) {
       timerEl.classList.remove("is-warning");
-      timerEl.textContent = "10:00";
+      timerEl.textContent = "05:00";
     }
     const scoreEl = document.getElementById("hud-score");
     if (scoreEl) scoreEl.textContent = "SCORE: 0";
@@ -369,6 +369,13 @@ class CabinScene extends Phaser.Scene {
     if (!liveTargets.includes(this.selectedServiceTarget)) this.selectedServiceTarget = null;
     this.syncPassengerBubbles();
     this.updateHintBar();
+
+    if (this.allServiceResolved() && this.phase === "service") {
+      const bonus = Math.max(0, this.remainingSec - 180);
+      if (bonus > 0) this.updateScore(bonus);
+      this.showServicePopup();
+      this.enterCollectionPhase();
+    }
   }
 
   getSelectableServiceTargets() {
@@ -450,27 +457,24 @@ class CabinScene extends Phaser.Scene {
       delay: 1000,
       loop: true,
       callback: () => {
-        this.remainingSec = Math.max(0, this.remainingSec - 1);
+        if (this.remainingSec <= 0) return;
+        this.remainingSec -= 1;
         this.updateTimerHud();
         this.checkPhaseCheckpoints();
-        if (this.remainingSec <= 0) {
-          this.timerEvent.remove(false);
-          this.scene.start("WinScene", { score: this.score });
-        }
       },
     });
   }
 
   checkPhaseCheckpoints() {
-    if (this.remainingSec <= 120) {
+    if (this.remainingSec <= 60) {
       const timerEl = document.getElementById("hud-timer");
       if (timerEl) timerEl.classList.add("is-warning");
     }
-    if (this.remainingSec === 300 && this.phase === "service") {
+    if (this.remainingSec === 180 && this.phase === "service") {
       this.showServicePopup();
       this.enterCollectionPhase();
     }
-    if (this.remainingSec === 180 && this.phase === "collection") {
+    if (this.remainingSec === 90 && this.phase === "collection") {
       this.finishCollectionPhase();
     }
   }
@@ -509,13 +513,16 @@ class CabinScene extends Phaser.Scene {
 
   finishCollectionPhase() {
     if (this.phase !== "collection") return;
+    // Time bonus: +1 per second saved vs the 1:30 (90s) checkpoint
+    const bonus = Math.max(0, this.remainingSec - 90);
+    if (bonus > 0) this.updateScore(bonus);
+    // Missed cup penalties
     for (let r = 1; r <= CABIN_ROWS; r++) {
       for (let s = 0; s < 6; s++) {
         const seat = this.paxMap[r][s];
         if (seat.hasCup && !seat.cupCollected) this.updateScore(SCORE_RULES.collectionMiss);
       }
     }
-    this.setPhase("landing");
     this.startLandingSequence();
   }
 
