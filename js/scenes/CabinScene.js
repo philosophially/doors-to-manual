@@ -12,6 +12,15 @@ class CabinScene extends Phaser.Scene {
         this.load.image(`${g}-${d}`, `sprites/${g}-${d}.png`);
       });
     });
+    this.load.image("bubble_oj", "sprites/bubble_oj.png");
+    this.load.image("bubble_water", "sprites/bubble_water.png");
+    this.load.image("bubble_wine", "sprites/bubble_wine.png");
+    this.load.image("bubble_padthai", "sprites/bubble_padthai.png");
+    this.load.image("bubble_chickenrice", "sprites/bubble_chickenrice.png");
+    this.load.image("bubble_yakisoba", "sprites/bubble_yakisoba.png");
+    this.load.image("bubble_fishpotatoes", "sprites/bubble_fishpotatoes.png");
+    this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
+    this.load.image("bubble_nothanks", "sprites/bubble_nothanks.png");
     this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
     generateTextures(this);
   }
@@ -156,7 +165,7 @@ class CabinScene extends Phaser.Scene {
       this.setCrewDirection("north");
       moved = true;
     }
-    if (moveDown && this.playerRow < TR.cabin + 7) {
+    if (moveDown && this.playerRow <= TR.cabin + 7) {
       this.playerRow += 1;
       if (
         this.phase === "service" ||
@@ -867,9 +876,9 @@ class CabinScene extends Phaser.Scene {
           if (usesAtlas) {
             this.add
               .image(cx, cy, "passengers", seat.spriteFrame)
-              .setDisplaySize(TILE - 8, TILE - 8);
+              .setDisplaySize(TILE - 16, TILE - 16);
           } else {
-            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 8, TILE - 8);
+            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 16, TILE - 16);
           }
         }
       });
