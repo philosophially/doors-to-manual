@@ -15,10 +15,6 @@ class CabinScene extends Phaser.Scene {
     this.load.image("bubble_oj", "sprites/bubble_oj.png");
     this.load.image("bubble_water", "sprites/bubble_water.png");
     this.load.image("bubble_wine", "sprites/bubble_wine.png");
-    this.load.image("bubble_padthai", "sprites/bubble_padthai.png");
-    this.load.image("bubble_chickenrice", "sprites/bubble_chickenrice.png");
-    this.load.image("bubble_yakisoba", "sprites/bubble_yakisoba.png");
-    this.load.image("bubble_fishpotatoes", "sprites/bubble_fishpotatoes.png");
     this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
     this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
     generateTextures(this);
@@ -37,8 +33,6 @@ class CabinScene extends Phaser.Scene {
     this.selectedServiceTarget = null;
     this.serviceSideChosen = false;
     this.promptState = null;
-    this.callTasks = [];
-    this.pendingCallContext = null;
 
     // -------------------------------------------------------------------------
     // FIX — Issue 3: Reset all persistent DOM HUD elements on every new game.
@@ -85,15 +79,9 @@ class CabinScene extends Phaser.Scene {
       space: Phaser.Input.Keyboard.KeyCodes.SPACE,
       esc: Phaser.Input.Keyboard.KeyCodes.ESC,
       shift: Phaser.Input.Keyboard.KeyCodes.SHIFT,
-      c: Phaser.Input.Keyboard.KeyCodes.C,
-      f: Phaser.Input.Keyboard.KeyCodes.F,
-      g: Phaser.Input.Keyboard.KeyCodes.G,
-      r: Phaser.Input.Keyboard.KeyCodes.R,
       one: Phaser.Input.Keyboard.KeyCodes.ONE,
       two: Phaser.Input.Keyboard.KeyCodes.TWO,
       three: Phaser.Input.Keyboard.KeyCodes.THREE,
-      four: Phaser.Input.Keyboard.KeyCodes.FOUR,
-      five: Phaser.Input.Keyboard.KeyCodes.FIVE,
     });
 
     this.trolley = null;
@@ -168,8 +156,7 @@ class CabinScene extends Phaser.Scene {
       this.playerRow += 1;
       if (
         this.phase === "service" ||
-        this.phase === "collection" ||
-        this.phase === "callbutton"
+        this.phase === "collection"
       ) {
         this.setCrewDirection("north");
       } else {
@@ -182,7 +169,7 @@ class CabinScene extends Phaser.Scene {
       if (this.phase === "service") {
         this.selectedServiceTarget = null;
         this.promptState = null;
-      } else if (this.phase === "collection" || this.phase === "callbutton") {
+      } else if (this.phase === "collection") {
         this.selectedSeatIdx = null;
         this.promptState = null;
       }
@@ -244,75 +231,53 @@ class CabinScene extends Phaser.Scene {
     }
     if (this.phase === "service") { this.handleServiceInputs(); return; }
     if (this.phase === "collection") { this.handleCollectionInputs(); return; }
-    if (this.phase === "callbutton") { this.handleCallbuttonInputs(); }
   }
 
   handleServiceInputs() {
     const k = this.keyMap;
     const seat = this.getSelectedSeat();
     if (!seat || !seat.occ || seat.served) return;
+
     if (Phaser.Input.Keyboard.JustDown(k.shift)) {
-      if (seat.state === "sleeping") {
+      if (seat.state === "sleeping" || seat.state === "nothanks") {
         seat.served = true;
         this.updateAfterServiceResolution();
       }
       return;
     }
+
     if (Phaser.Input.Keyboard.JustDown(k.space)) {
       this.promptState = "service";
       this.updateHintBar();
       return;
     }
+
     if (this.promptState !== "service") return;
-    const keyToItem = this.serviceKeyMap();
+
+    const keyToItem = { 1: "oj", 2: "water", 3: "wine" };
     const pressed = this.getPressedServiceKey();
     if (!pressed) return;
     const chosen = keyToItem[pressed];
     if (!chosen) return;
+
     if (seat.state === "sleeping") {
       this.updateScore(SERVICE_POINTS.sleepingWake);
       this.promptState = null;
+      this.updateHintBar();
       return;
     }
-    const req = seat.state.split("+");
-    if (req.length === 1) {
-      if (req[0] === chosen) {
-        this.updateScore(
-          req[0] === "oj" || req[0] === "water" || req[0] === "wine"
-            ? SERVICE_POINTS.drink
-            : SERVICE_POINTS.meal,
-        );
-        seat.served = true;
-        seat.hasCup = true;
-        this.promptState = null;
-        this.updateAfterServiceResolution();
-      } else {
-        this.updateScore(SERVICE_POINTS.wrongItem);
-        this.promptState = null;
-      }
-      return;
-    }
-    if (!this.pendingComboPick) {
-      if (chosen !== req[0]) {
-        this.updateScore(SERVICE_POINTS.wrongItem);
-        this.promptState = null;
-        return;
-      }
-      this.pendingComboPick = chosen;
-      return;
-    }
-    if (chosen === req[1]) {
-      this.updateScore(SERVICE_POINTS.combo);
+
+    if (seat.state === chosen) {
+      this.updateScore(SERVICE_POINTS.drink);
       seat.served = true;
       seat.hasCup = true;
-      this.pendingComboPick = null;
       this.promptState = null;
       this.updateAfterServiceResolution();
-      return;
+    } else {
+      this.updateScore(SERVICE_POINTS.wrongItem);
+      this.promptState = null;
+      this.updateHintBar();
     }
-    this.updateScore(SERVICE_POINTS.wrongItem);
-    this.pendingComboPick = null;
-    this.promptState = null;
   }
 
   handleCollectionInputs() {
@@ -336,60 +301,11 @@ class CabinScene extends Phaser.Scene {
     }
   }
 
-  handleCallbuttonInputs() {
-    const k = this.keyMap;
-    const task = this.getCurrentCallTask();
-    if (!task) return;
-    if (task.scenario === "B") {
-      if (
-        Phaser.Input.Keyboard.JustDown(k.r) ||
-        Phaser.Input.Keyboard.JustDown(k.shift)
-      ) {
-        task.resolved = true;
-        this.updateScore(SCORE_RULES.callReset);
-      }
-      return;
-    }
-    if (Phaser.Input.Keyboard.JustDown(k.space)) {
-      this.promptState = "callbutton";
-      this.pendingCallContext = { items: [] };
-      this.updateHintBar();
-      return;
-    }
-    if (!this.pendingCallContext) return;
-    if (this.playerRow === TR.galley && Phaser.Input.Keyboard.JustDown(k.f)) {
-      this.promptState = "fetch";
-      this.updateHintBar();
-      return;
-    }
-    if (this.promptState === "fetch") {
-      if (Phaser.Input.Keyboard.JustDown(k.one)) this.pendingCallContext.items.push("drink");
-      if (Phaser.Input.Keyboard.JustDown(k.two)) this.pendingCallContext.items.push("snack");
-    }
-    if (Phaser.Input.Keyboard.JustDown(k.g)) {
-      const got = this.pendingCallContext.items.slice().sort().join(",");
-      const want = task.expectedItems.slice().sort().join(",");
-      this.updateScore(got === want ? SCORE_RULES.callCorrect : SCORE_RULES.callWrong);
-      task.resolved = true;
-      this.pendingCallContext = null;
-      this.promptState = null;
-    }
-  }
-
-  serviceKeyMap() {
-    const map = { 1: "oj", 2: "water", 3: "wine" };
-    if (this.routeKey === "BKK") { map[4] = "padthai"; map[5] = "chickenrice"; }
-    if (this.routeKey === "NRT") { map[4] = "yakisoba"; map[5] = "fishpotatoes"; }
-    return map;
-  }
-
   getPressedServiceKey() {
     const k = this.keyMap;
     if (Phaser.Input.Keyboard.JustDown(k.one)) return 1;
     if (Phaser.Input.Keyboard.JustDown(k.two)) return 2;
     if (Phaser.Input.Keyboard.JustDown(k.three)) return 3;
-    if (Phaser.Input.Keyboard.JustDown(k.four)) return 4;
-    if (Phaser.Input.Keyboard.JustDown(k.five)) return 5;
     return null;
   }
 
@@ -410,12 +326,6 @@ class CabinScene extends Phaser.Scene {
       const seat = this.paxMap[rowNum][idx];
       if (!seat.occ) continue;
       if (this.phase === "collection" && seat.hasCup && !seat.cupCollected) result.push(idx);
-      if (this.phase === "callbutton") {
-        const task = this.callTasks.find(
-          (t) => t.rowNum === rowNum && t.seatIdx === idx && !t.resolved,
-        );
-        if (task) result.push(idx);
-      }
     }
     return result;
   }
@@ -493,9 +403,7 @@ class CabinScene extends Phaser.Scene {
       idle: "BOARDING",
       service: "SERVICE",
       collection: "COLLECTION",
-      callbutton: "CALL BUTTONS",
       landing: "LANDING",
-      landed: "LANDED",
     };
     const el = document.getElementById("hud-phase");
     if (el) el.textContent = `PHASE: ${labels[phase] || phase.toUpperCase()}`;
@@ -565,9 +473,6 @@ class CabinScene extends Phaser.Scene {
     if (this.remainingSec === 180 && this.phase === "collection") {
       this.finishCollectionPhase();
     }
-    if (this.remainingSec === 60 && this.phase === "callbutton") {
-      this.finishCallbuttonPhase();
-    }
   }
 
   showServicePopup() {
@@ -610,48 +515,6 @@ class CabinScene extends Phaser.Scene {
         if (seat.hasCup && !seat.cupCollected) this.updateScore(SCORE_RULES.collectionMiss);
       }
     }
-    this.enterCallbuttonPhase();
-  }
-
-  enterCallbuttonPhase() {
-    this.setPhase("callbutton");
-    this.callTasks = this.pickCallTasks();
-    this.selectedSeatIdx = null;
-    this.promptState = null;
-    this.pendingCallContext = null;
-  }
-
-  pickCallTasks() {
-    const servedSeats = [];
-    for (let r = 1; r <= CABIN_ROWS; r++) {
-      for (let s = 0; s < 6; s++) {
-        const seat = this.paxMap[r][s];
-        if (seat.occ && seat.served) servedSeats.push({ rowNum: r, seatIdx: s });
-      }
-    }
-    Phaser.Utils.Array.Shuffle(servedSeats);
-    const picked = servedSeats.slice(0, Math.min(3, servedSeats.length));
-    return picked.map((p, i) => ({
-      ...p,
-      scenario: i % 2 === 0 ? "A" : "B",
-      expectedItems: i % 2 === 0 ? ["drink"] : [],
-      resolved: false,
-    }));
-  }
-
-  getCurrentCallTask() {
-    const rowNum = this.getCurrentRowNum();
-    return (
-      this.callTasks.find(
-        (t) => t.rowNum === rowNum && t.seatIdx === this.selectedSeatIdx && !t.resolved,
-      ) || null
-    );
-  }
-
-  finishCallbuttonPhase() {
-    for (let i = 0; i < this.callTasks.length; i++) {
-      if (!this.callTasks[i].resolved) this.updateScore(SCORE_RULES.callUnresolved);
-    }
     this.setPhase("landing");
     this.startLandingSequence();
   }
@@ -683,7 +546,7 @@ class CabinScene extends Phaser.Scene {
     for (let i = 0; i < this.route.turbulence.length; i++) {
       const t = this.route.turbulence[i];
       this.time.delayedCall(t.elapsedSec * 1000, () => {
-        if (this.phase === "service" || this.phase === "callbutton") {
+        if (this.phase === "service") {
           this.updateScore(SCORE_RULES.turbulenceSpill);
         }
       });
@@ -738,15 +601,8 @@ class CabinScene extends Phaser.Scene {
       el.textContent = `1 OJ | 2 Water | 3 Wine${meal}`;
     } else if (this.phase === "collection") {
       el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
-    } else if (this.phase === "callbutton") {
-      el.textContent = "F — Fetch from galley | G — Serve | R or SHIFT — Reset call button | ESC — Cancel";
     } else if (this.phase === "landing") {
       el.textContent = "Cabin checked and ready for landing...";
-    } else if (this.phase === "landed") {
-      // -----------------------------------------------------------------------
-      // FIX — Issue 2: Congratulations message shown on the win screen.
-      // -----------------------------------------------------------------------
-      el.textContent = "Congratulations on a safe landing!";
     }
   }
 
