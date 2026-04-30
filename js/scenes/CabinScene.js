@@ -16,6 +16,7 @@ class CabinScene extends Phaser.Scene {
     this.load.image("bubble_water", "sprites/bubble_water.png");
     this.load.image("bubble_wine", "sprites/bubble_wine.png");
     this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
+    this.load.image("bubble_emptycup", "sprites/bubble_emptycup.png");
     this.load.audio("landing_announcement", "audio/landing_announcement.mp3");
     this.load.on("loaderror", (file) => {
       console.warn("Asset failed to load:", file.key);
@@ -69,7 +70,6 @@ class CabinScene extends Phaser.Scene {
     this.drawCabin();
     this.drawCockpit();
     this.aisleTint = this.add.graphics();
-    this.cupIconGraphics = this.add.graphics().setDepth(50);
     this.bubbleByKey = {};
     this.bubbleWindowStartDisplay = 1;
     this.playerCol = TC.aisle;
@@ -87,6 +87,7 @@ class CabinScene extends Phaser.Scene {
       a: Phaser.Input.Keyboard.KeyCodes.A,
       d: Phaser.Input.Keyboard.KeyCodes.D,
       space: Phaser.Input.Keyboard.KeyCodes.SPACE,
+      c: Phaser.Input.Keyboard.KeyCodes.C,
       esc: Phaser.Input.Keyboard.KeyCodes.ESC,
       shift: Phaser.Input.Keyboard.KeyCodes.SHIFT,
       one: Phaser.Input.Keyboard.KeyCodes.ONE,
@@ -143,7 +144,10 @@ class CabinScene extends Phaser.Scene {
 
   update() {
     if (!this.serviceEntryComplete) return;
-    if (this.handleMovement()) this.syncPassengerBubbles();
+    if (this.handleMovement()) {
+      this.syncPassengerBubbles();
+      if (this.phase === "collection") this.syncCollectionBubbles();
+    }
     this.handleFacingAndSelection();
     this.handleInteractionKeys();
   }
@@ -199,6 +203,7 @@ class CabinScene extends Phaser.Scene {
         this.selectedSeatIdx = null;
       }
       this.syncPassengerBubbles();
+      if (this.phase === "collection") this.syncCollectionBubbles();
     }
     if (Phaser.Input.Keyboard.JustDown(k.d)) {
       this.facing = "east";
@@ -210,6 +215,7 @@ class CabinScene extends Phaser.Scene {
         this.selectedSeatIdx = null;
       }
       this.syncPassengerBubbles();
+      if (this.phase === "collection") this.syncCollectionBubbles();
     }
     if (Phaser.Input.Keyboard.JustDown(k.left)) {
       if (this.phase === "service" && !this.serviceSideChosen) return;
@@ -230,6 +236,7 @@ class CabinScene extends Phaser.Scene {
       if (this.phase === "service") this.serviceSideChosen = false;
       this.updateHintBar();
       this.syncPassengerBubbles();
+      if (this.phase === "collection") this.syncCollectionBubbles();
       return;
     }
     if (this.phase === "idle" && Phaser.Input.Keyboard.JustDown(k.space)) {
@@ -289,24 +296,45 @@ class CabinScene extends Phaser.Scene {
 
   handleCollectionInputs() {
     const k = this.keyMap;
-    const seat = this.getSelectedSeat();
-    if (!seat || !seat.hasCup || seat.cupCollected) return;
+
     if (Phaser.Input.Keyboard.JustDown(k.space)) {
+      const seat = this.getSelectedSeat();
+      if (!seat) return;
+      const isCollectable = seat.hasCup && !seat.cupCollected;
+      const isSleeping = seat.state === "sleeping" && !seat.cupCollected;
+      if (!isCollectable && !isSleeping) return;
       this.promptState = "collection";
       this.updateHintBar();
       return;
     }
+
     if (this.promptState !== "collection") return;
+
+    const seat = this.getSelectedSeat();
+    if (!seat) return;
+
     if (Phaser.Input.Keyboard.JustDown(k.c)) {
-      seat.cupCollected = true;
-      this.updateScore(SCORE_RULES.collectionGood);
-      this.promptState = null;
-      this.renderCupIcons();
+      if (seat.state === "sleeping") {
+        this.updateScore(-10);
+        this.promptState = null;
+        this.updateHintBar();
+        return;
+      }
+      if (seat.hasCup && !seat.cupCollected) {
+        seat.cupCollected = true;
+        this.updateScore(SCORE_RULES.collectionGood);
+        this.promptState = null;
+        this.updateHintBar();
+        this.syncCollectionBubbles();
+      }
+      return;
     }
+
     if (Phaser.Input.Keyboard.JustDown(k.shift)) {
       seat.cupCollected = true;
       this.promptState = null;
-      this.renderCupIcons();
+      this.updateHintBar();
+      this.syncCollectionBubbles();
     }
   }
 
@@ -328,22 +356,36 @@ class CabinScene extends Phaser.Scene {
     if (this.phase === "service") return this.getSelectableServiceTargets();
     const rowNum = this.getCurrentRowNum();
     if (rowNum < 1 || rowNum > CABIN_ROWS) return [];
-    const arr = this.facing === "east" ? [3, 4, 5] : [0, 1, 2];
-    const result = [];
-    for (let i = 0; i < arr.length; i++) {
-      const idx = arr[i];
-      const seat = this.paxMap[rowNum][idx];
-      if (!seat.occ) continue;
-      if (this.phase === "collection" && seat.hasCup && !seat.cupCollected) result.push(idx);
+    if (this.phase === "collection") {
+      const arr = this.facing === "east" ? [3, 4, 5] : [0, 1, 2];
+      const seen = new Set();
+      const result = [];
+      for (let i = 0; i < arr.length; i++) {
+        const idx = arr[i];
+        if (seen.has(idx)) continue;
+        const seat = this.paxMap[rowNum][idx];
+        if (!seat.occ) continue;
+        if (
+          (seat.hasCup && !seat.cupCollected) ||
+          (seat.state === "sleeping" && !seat.cupCollected)
+        ) {
+          result.push(idx);
+          seen.add(idx);
+        }
+      }
+      return result;
     }
-    return result;
+    return [];
   }
 
   moveSeatSelection(delta) {
     const seats = this.getSelectableSeatIndices();
     if (!seats.length) {
       if (this.phase === "service") this.selectedServiceTarget = null;
-      else this.selectedSeatIdx = null;
+      else {
+        this.selectedSeatIdx = null;
+        if (this.phase === "collection") this.syncCollectionBubbles();
+      }
       return;
     }
     const current = this.phase === "service" ? this.selectedServiceTarget : this.selectedSeatIdx;
@@ -355,6 +397,7 @@ class CabinScene extends Phaser.Scene {
       this.syncPassengerBubbles();
     } else {
       this.selectedSeatIdx = seats[i];
+      if (this.phase === "collection") this.syncCollectionBubbles();
     }
   }
 
@@ -513,12 +556,12 @@ class CabinScene extends Phaser.Scene {
   }
 
   enterCollectionPhase() {
-    this.renderCupIcons();
-    this.setPhase("collection");
     this.selectedSeatIdx = null;
     this.promptState = null;
     if (this.trolley)
       this.trolley.setPosition(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4);
+    this.setPhase("collection");
+    this.syncCollectionBubbles();
   }
 
   finishCollectionPhase() {
@@ -530,7 +573,9 @@ class CabinScene extends Phaser.Scene {
     for (let r = 1; r <= CABIN_ROWS; r++) {
       for (let s = 0; s < 6; s++) {
         const seat = this.paxMap[r][s];
-        if (seat.hasCup && !seat.cupCollected) this.updateScore(SCORE_RULES.collectionMiss);
+        if (seat.hasCup && !seat.cupCollected && seat.state !== "sleeping") {
+          this.updateScore(SCORE_RULES.collectionMiss);
+        }
       }
     }
     this.startLandingSequence();
@@ -630,6 +675,8 @@ class CabinScene extends Phaser.Scene {
       el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
     } else if (this.phase === "service" && this.promptState === "service") {
       el.textContent = "1 OJ  |  2 WATER  |  3 WINE  |  ESC CANCEL";
+    } else if (this.phase === "collection" && this.promptState === "collection") {
+      el.textContent = "C — Collect  |  SHIFT — Skip  |  ESC — Cancel";
     } else if (this.phase === "collection") {
       el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
     } else if (this.phase === "landing") {
@@ -721,6 +768,63 @@ class CabinScene extends Phaser.Scene {
     }
   }
 
+  syncCollectionBubbles() {
+    if (this.phase !== "collection") return;
+    const bubbleSize = Math.round(TILE * 0.82);
+    const bubbleSizeActive = Math.round(TILE * 0.9);
+
+    const desired = new Set();
+    for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
+      for (let seatIdx = 0; seatIdx < 6; seatIdx++) {
+        const seat = this.paxMap[rowNum][seatIdx];
+        if (!seat.occ) continue;
+        if (seat.hasCup && !seat.cupCollected) desired.add(`${rowNum}-${seatIdx}`);
+        else if (seat.state === "sleeping" && !seat.cupCollected) desired.add(`${rowNum}-${seatIdx}`);
+      }
+    }
+
+    const keys = Object.keys(this.bubbleByKey);
+    for (let i = 0; i < keys.length; i++) {
+      if (!desired.has(keys[i])) {
+        this.bubbleByKey[keys[i]].destroy();
+        delete this.bubbleByKey[keys[i]];
+      }
+    }
+
+    desired.forEach((key) => {
+      if (this.bubbleByKey[key]) return;
+      const [rowText, seatText] = key.split("-");
+      const rowNum = Number(rowText);
+      const seatIdx = Number(seatText);
+      const seat = this.paxMap[rowNum][seatIdx];
+      const col = this.seatColForSeatIndex(seatIdx);
+      const tex = seat.state === "sleeping" ? "bubble_sleeping" : "bubble_emptycup";
+      const img = this.add
+        .image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 3, tex)
+        .setOrigin(0.5, 1)
+        .setDisplaySize(bubbleSize, bubbleSize)
+        .setDepth(100);
+      this.bubbleByKey[key] = img;
+    });
+
+    const activeKey =
+      this.selectedSeatIdx !== null
+        ? `${this.getCurrentRowNum()}-${this.selectedSeatIdx}`
+        : null;
+    const allKeys = Object.keys(this.bubbleByKey);
+    for (let i = 0; i < allKeys.length; i++) {
+      const key = allKeys[i];
+      const bubble = this.bubbleByKey[key];
+      if (!bubble) continue;
+      const isActive = key === activeKey;
+      bubble.setDisplaySize(
+        isActive ? bubbleSizeActive : bubbleSize,
+        isActive ? bubbleSizeActive : bubbleSize,
+      );
+      bubble.setTint(isActive ? 0xd6ffad : 0xffffff);
+    }
+  }
+
   drawAisle() {
     for (let r = 0; r < CABIN_ROWS; r++) {
       this.add.image(tx(TC.aisle) + TILE / 2, ty(TR.cabin + r) + TILE / 2, "aisle_tile");
@@ -767,25 +871,6 @@ class CabinScene extends Phaser.Scene {
           } else {
             this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 20, TILE - 20);
           }
-        }
-      });
-    }
-  }
-
-  renderCupIcons() {
-    this.cupIconGraphics.clear();
-    this.cupIconGraphics.fillStyle(0xffaa00, 1);
-    const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
-    for (let r = 0; r < CABIN_ROWS; r++) {
-      const rowNum = r + 1;
-      seatCols.forEach((col, seatIdx) => {
-        const seat = this.paxMap[rowNum][seatIdx];
-        if (seat.hasCup === true && seat.cupCollected === false) {
-          this.cupIconGraphics.fillCircle(
-            tx(col) + TILE / 2,
-            ty(TR.cabin + r) + 10,
-            8,
-          );
         }
       });
     }
