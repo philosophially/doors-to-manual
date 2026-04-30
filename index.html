@@ -226,7 +226,7 @@
       <header class="hud hud--top">
         <span class="hud__armed" id="hud-armed">DOORS TO ARMED</span>
         <span class="hud__route" id="hud-route">SIN → KUL</span>
-        <span class="hud__timer" id="hud-timer">10:00</span>
+        <span class="hud__timer" id="hud-timer">05:00</span>
       </header>
 
       <div id="game-stage" class="game-stage">
@@ -273,21 +273,26 @@
         <div class="legend-modal__section">
           <div class="legend-modal__h">INTERACTION</div>
           <p class="legend-modal__p">
-            SPACEBAR — start/open interaction<br />
-            ESC — cancel/deselect<br />
-            SHIFT — skip (service/collection) or reset accidental call button<br />
-            1/2/3 drinks, 4/5 meals, C collect, F fetch, G serve, R reset
+            Arrow Up / Down or W / S — move along aisle<br />
+            A / D — face seats (A: D/E/F side, D: A/B/C side)<br />
+            Arrow Left / Right — select seat in current row<br />
+            SPACEBAR — start service / open drink prompt<br />
+            SHIFT — skip sleeping passenger (no penalty)<br />
+            1 OJ | 2 Water | 3 Wine — select drink when prompt open<br />
+            C — collect cup during collection phase<br />
+            ESC — cancel / deselect
           </p>
         </div>
 
         <div class="legend-modal__section">
           <div class="legend-modal__h">SCORING HINTS</div>
           <p class="legend-modal__p">
-            Correct drink/meal → +10 each (combo +20)<br />
-            Wrong service item → -10 per item<br />
+            Correct drink served → +10<br />
+            Wrong drink → -10<br />
             Wake sleeping passenger → -15<br />
-            Missed collection item → -5<br />
-            Call button unresolved at landing → -12 each
+            Cup collected → +3<br />
+            Missed cup at collection end → -5<br />
+            Finish phase early → +1 per second saved
           </p>
         </div>
 
