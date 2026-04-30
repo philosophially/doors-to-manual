@@ -16,6 +16,10 @@ class CabinScene extends Phaser.Scene {
     this.load.image("bubble_water", "sprites/bubble_water.png");
     this.load.image("bubble_wine", "sprites/bubble_wine.png");
     this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
+    this.load.audio("landing_announcement", "audio/landing_announcement.mp3");
+    this.load.on("loaderror", (file) => {
+      console.warn("Asset failed to load:", file.key);
+    });
     this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
     generateTextures(this);
   }
@@ -528,36 +532,51 @@ class CabinScene extends Phaser.Scene {
 
   startLandingSequence() {
     this.serviceEntryComplete = false;
-    this.updateHintBar();
-    this.tweens.add({
-      targets: this.cameras.main,
-      duration: 700,
-      repeat: 8,
-      onUpdate: () => { this.cameras.main.shake(40, 0.004); },
-    });
-    this.time.delayedCall(Math.max(1000, this.remainingSec * 1000), () => {
-      this.remainingSec = 0;
-      this.updateTimerHud();
-      // -----------------------------------------------------------------------
-      // FIX — Issue 2: Switch to "landed" phase immediately before handing off
-      // to WinScene. This sets the bottom HUD to "PHASE: LANDED" and updates
-      // the hint bar to the congratulations message. Both DOM elements persist
-      // visibly on the WinScene since they live outside the Phaser canvas.
-      // -----------------------------------------------------------------------
-      this.setPhase("landed");
+    this.setPhase("landing");
+    this.cameras.main.shake(1000, 0.004);
+
+    const announcement = this.sound.add("landing_announcement", { volume: 1 });
+    announcement.play();
+    announcement.once("complete", () => {
       this.scene.start("WinScene", { score: this.score });
+    });
+
+    // Fallback: proceed to WinScene if audio never fires "complete"
+    this.time.delayedCall(15000, () => {
+      if (this.scene.isActive("CabinScene")) {
+        this.scene.start("WinScene", { score: this.score });
+      }
     });
   }
 
   scheduleTurbulence() {
-    for (let i = 0; i < this.route.turbulence.length; i++) {
-      const t = this.route.turbulence[i];
-      this.time.delayedCall(t.elapsedSec * 1000, () => {
-        if (this.phase === "service") {
-          this.updateScore(SCORE_RULES.turbulenceSpill);
+    const t = this.route.turbulence && this.route.turbulence[0];
+    if (!t) return;
+    this.time.delayedCall(t.elapsedSec * 1000, () => {
+      if (this.phase !== "service") return;
+      this.cameras.main.shake(t.durationSec * 1000, 0.005);
+      const txt = this.add.text(CW / 2, CH / 2 - 40,
+        "WE HIT TURBULENCE\n(not the song)", {
+          fontFamily: '"Press Start 2P"',
+          fontSize: "11px",
+          color: "#ffff44",
+          backgroundColor: "#1b2a4a",
+          padding: { x: 14, y: 10 },
+          align: "center",
         }
+      ).setOrigin(0.5).setDepth(200);
+      const flashTween = this.tweens.add({
+        targets: txt,
+        alpha: { from: 1, to: 0 },
+        duration: 400,
+        yoyo: true,
+        repeat: -1,
       });
-    }
+      this.time.delayedCall(t.durationSec * 1000, () => {
+        flashTween.stop();
+        txt.destroy();
+      });
+    });
   }
 
   allServiceResolved() {
@@ -601,11 +620,7 @@ class CabinScene extends Phaser.Scene {
     } else if (this.phase === "service" && this.promptState !== "service") {
       el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
     } else if (this.phase === "service" && this.promptState === "service") {
-      const meal =
-        this.routeKey === "KUL" ? ""
-        : this.routeKey === "BKK" ? " | 4 Pad Thai | 5 Chicken Rice"
-        : " | 4 Yakisoba | 5 Fish w/ Potatoes";
-      el.textContent = `1 OJ | 2 Water | 3 Wine${meal}`;
+      el.textContent = "1 OJ  |  2 WATER  |  3 WINE  |  ESC CANCEL";
     } else if (this.phase === "collection") {
       el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
     } else if (this.phase === "landing") {
