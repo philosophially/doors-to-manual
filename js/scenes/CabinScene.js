@@ -56,6 +56,11 @@ class CabinScene extends Phaser.Scene {
     if (phaseEl) phaseEl.textContent = "PHASE: BOARDING";
     const hintEl = document.getElementById("hint-bar");
     if (hintEl) hintEl.textContent = "SPACEBAR — Begin service";
+    const armedEl = document.getElementById("hud-armed");
+    if (armedEl) {
+      armedEl.textContent = "DOORS TO ARMED";
+      armedEl.style.color = "#ff4444";
+    }
 
     this.add.rectangle(CW / 2, CH / 2, CW, CH, C.bg);
     this.drawFuselage();
@@ -64,6 +69,7 @@ class CabinScene extends Phaser.Scene {
     this.drawCabin();
     this.drawCockpit();
     this.aisleTint = this.add.graphics();
+    this.cupIconGraphics = this.add.graphics().setDepth(50);
     this.bubbleByKey = {};
     this.bubbleWindowStartDisplay = 1;
     this.playerCol = TC.aisle;
@@ -176,9 +182,6 @@ class CabinScene extends Phaser.Scene {
       } else if (this.phase === "collection") {
         this.selectedSeatIdx = null;
         this.promptState = null;
-      }
-      if (this.phase === "collection" && this.playerRow === TR.galley) {
-        this.finishCollectionPhase();
       }
     }
     return moved;
@@ -298,10 +301,12 @@ class CabinScene extends Phaser.Scene {
       seat.cupCollected = true;
       this.updateScore(SCORE_RULES.collectionGood);
       this.promptState = null;
+      this.renderCupIcons();
     }
     if (Phaser.Input.Keyboard.JustDown(k.shift)) {
       seat.cupCollected = true;
       this.promptState = null;
+      this.renderCupIcons();
     }
   }
 
@@ -414,7 +419,7 @@ class CabinScene extends Phaser.Scene {
       idle: "BOARDING",
       service: "SERVICE",
       collection: "COLLECTION",
-      landing: "LANDING",
+      landing: "LANDED",
     };
     const el = document.getElementById("hud-phase");
     if (el) el.textContent = `PHASE: ${labels[phase] || phase.toUpperCase()}`;
@@ -474,11 +479,11 @@ class CabinScene extends Phaser.Scene {
       const timerEl = document.getElementById("hud-timer");
       if (timerEl) timerEl.classList.add("is-warning");
     }
-    if (this.remainingSec === 180 && this.phase === "service") {
+    if (this.remainingSec === 120 && this.phase === "service") {
       this.showServicePopup();
       this.enterCollectionPhase();
     }
-    if (this.remainingSec === 90 && this.phase === "collection") {
+    if (this.remainingSec === 30 && this.phase === "collection") {
       this.finishCollectionPhase();
     }
   }
@@ -508,6 +513,7 @@ class CabinScene extends Phaser.Scene {
   }
 
   enterCollectionPhase() {
+    this.renderCupIcons();
     this.setPhase("collection");
     this.selectedSeatIdx = null;
     this.promptState = null;
@@ -533,6 +539,9 @@ class CabinScene extends Phaser.Scene {
   startLandingSequence() {
     this.serviceEntryComplete = false;
     this.setPhase("landing");
+    if (this.trolley) {
+      this.trolley.setVisible(false);
+    }
     this.cameras.main.shake(1000, 0.004);
 
     const announcement = this.sound.add("landing_announcement", { volume: 1 });
@@ -542,7 +551,7 @@ class CabinScene extends Phaser.Scene {
     });
 
     // Fallback: proceed to WinScene if audio never fires "complete"
-    this.time.delayedCall(15000, () => {
+    this.time.delayedCall(25000, () => {
       if (this.scene.isActive("CabinScene")) {
         this.scene.start("WinScene", { score: this.score });
       }
@@ -633,7 +642,7 @@ class CabinScene extends Phaser.Scene {
       tx(TC.aisle) + TILE / 2,
       ty(this.playerRow) + TILE,
     );
-    if (this.phase === "service" && this.trolley) {
+    if ((this.phase === "service" || this.phase === "collection") && this.trolley) {
       this.trolley.setPosition(
         tx(TC.aisle) + TILE / 2,
         ty(this.playerRow - 1) + TILE / 2 + 4,
@@ -758,6 +767,25 @@ class CabinScene extends Phaser.Scene {
           } else {
             this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 20, TILE - 20);
           }
+        }
+      });
+    }
+  }
+
+  renderCupIcons() {
+    this.cupIconGraphics.clear();
+    this.cupIconGraphics.fillStyle(0xffaa00, 1);
+    const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
+    for (let r = 0; r < CABIN_ROWS; r++) {
+      const rowNum = r + 1;
+      seatCols.forEach((col, seatIdx) => {
+        const seat = this.paxMap[rowNum][seatIdx];
+        if (seat.hasCup === true && seat.cupCollected === false) {
+          this.cupIconGraphics.fillCircle(
+            tx(col) + TILE / 2,
+            ty(TR.cabin + r) + 10,
+            8,
+          );
         }
       });
     }

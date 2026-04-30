@@ -12,9 +12,9 @@ class WinScene extends Phaser.Scene {
     }
 
     this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
-    this.add.text(CW / 2, 86, "CABIN CHECKED AND READY FOR LANDING", {
+    this.add.text(CW / 2, 86, "Ladies and Gentlemen, we have safely landed in Vibe Jam City.", {
       fontFamily: '"Press Start 2P"',
-      fontSize: "8px",
+      fontSize: "7px",
       color: "#FFFFFF",
     }).setOrigin(0.5);
     this.add.text(CW / 2, 132, "DOORS TO MANUAL", {

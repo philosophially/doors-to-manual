@@ -64,7 +64,7 @@ const ROUTES = {
     timerSeconds: 300,
     drinks: ["oj", "water", "wine"],
     meals: [],
-    turbulence: [{ elapsedSec: 90, severity: "mild", durationSec: 10 }],
+    turbulence: [{ elapsedSec: 60, severity: "mild", durationSec: 10 }],
   },
   BKK: { key: "BKK", label: "SIN → BKK", placeholder: true },
   NRT: { key: "NRT", label: "SIN → NRT", placeholder: true },
