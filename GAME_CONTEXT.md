@@ -141,7 +141,7 @@ If any sprite fails to load, generate a programmatic fallback texture with the s
 | 4 | service, NRT only (prompt active) | Select Yakisoba |
 | 5 | service, BKK only (prompt active) | Select Chicken Rice |
 | 5 | service, NRT only (prompt active) | Select Fish with Potatoes |
-| SHIFT | service | Skip sleeping or no-thanks passenger (standalone — no SPACEBAR needed first) |
+| SHIFT | service | Skip sleeping passenger (standalone — no SPACEBAR needed first) |
 | C | collection | Collect cup/tray from selected seat (after SPACEBAR opens interaction) |
 | SHIFT | collection | Skip passenger who does not want cup collected (after SPACEBAR opens interaction) |
 | F | callbutton — Scenario A | Fetch item(s) from galley (opens 1=DRINK / 2=SNACK prompt) |
@@ -220,7 +220,7 @@ Route config is stored in `ROUTES` object in `constants.js` and accessed via `RO
    - Dual request (drink + meal): drink key first → prompt stays open → meal key → both served
 6. Correct: score awarded, bubble clears, passenger satisfied
 7. Wrong: penalty applied, prompt closes
-- SHIFT skips sleeping/nothanks passengers — standalone, no SPACEBAR needed first
+- SHIFT skips sleeping passengers — standalone, no SPACEBAR needed first
 
 ### Collection Phase — Interaction Flow
 1. Player moves to a row, faces side with cup icons (Arrow Up/Down, D/A)
@@ -270,7 +270,6 @@ paxMap[rowNum][seatIdx] = {
 | State | Routes | Correct Action | Wrong Action Penalty |
 |---|---|---|---|
 | sleeping | All | SHIFT to skip | SPACEBAR = woken, -15 |
-| nothanks | All | SHIFT to skip | SPACEBAR = forced serve, -10 |
 | oj | All | SPACEBAR → 1 | Wrong key: -10 |
 | water | All | SPACEBAR → 2 | Wrong key: -10 |
 | wine | All | SPACEBAR → 3 | Wrong key: -10 |
@@ -292,11 +291,11 @@ paxMap[rowNum][seatIdx] = {
 | wine+fishpotatoes | NRT only | SPACEBAR → 3 then 5 | -10 per wrong item |
 
 ### State Pool by Route
-**KUL:** `['oj', 'water', 'wine', 'sleeping', 'nothanks']`
-Weighting: drinks most common, sleeping/nothanks rare.
+**KUL:** `['oj', 'water', 'wine', 'sleeping']`
+Weighting: drinks most common, sleeping is rare.
 
-**BKK:** `['oj', 'water', 'wine', 'padthai', 'chickenrice', 'oj+padthai', 'oj+chickenrice', 'water+padthai', 'water+chickenrice', 'wine+padthai', 'wine+chickenrice', 'sleeping', 'nothanks']`
-Weighting: drink+meal combos most common, drink-only moderate, sleeping/nothanks rare.
+**BKK:** `['oj', 'water', 'wine', 'padthai', 'chickenrice', 'oj+padthai', 'oj+chickenrice', 'water+padthai', 'water+chickenrice', 'wine+padthai', 'wine+chickenrice', 'sleeping']`
+Weighting: drink+meal combos most common, drink-only moderate, sleeping is rare.
 
 **NRT:** Same structure as BKK with `yakisoba` and `fishpotatoes` replacing BKK meal names.
 
@@ -313,7 +312,7 @@ Per row: 3–5 seats occupied (Fisher-Yates shuffle on indices 0–5).
 ## Request Bubbles (service phase)
 
 ### Bubble Textures (generated in `generateTextures()`)
-`bubble_sleeping`, `bubble_nothanks`, `bubble_oj`, `bubble_water`, `bubble_wine`, `bubble_padthai`, `bubble_chickenrice`, `bubble_yakisoba`, `bubble_fishpotatoes`
+`bubble_sleeping`, `bubble_oj`, `bubble_water`, `bubble_wine`, `bubble_padthai`, `bubble_chickenrice`, `bubble_yakisoba`, `bubble_fishpotatoes`
 
 Each: white rounded speech bubble, tail at bottom, small pixel icon inside.
 For dual-request passengers (drink + meal): both icons shown simultaneously in the same bubble (composed at runtime, not pre-generated).
@@ -350,7 +349,6 @@ For dual-request passengers (drink + meal): both icons shown simultaneously in t
 | Correct drink+meal combo served (service) | +20 |
 | Wrong drink or meal served | -10 per wrong item |
 | Sleeping passenger woken (SPACEBAR instead of SHIFT) | -15 |
-| No-thanks passenger forced serve | -10 |
 | Cup/tray collected (collection) | +3 per item |
 | Cup/tray missed at collection phase end | -5 per item |
 | Call button Scenario A — correct delivery | +15 |

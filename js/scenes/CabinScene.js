@@ -20,7 +20,6 @@ class CabinScene extends Phaser.Scene {
     this.load.image("bubble_yakisoba", "sprites/bubble_yakisoba.png");
     this.load.image("bubble_fishpotatoes", "sprites/bubble_fishpotatoes.png");
     this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
-    this.load.image("bubble_nothanks", "sprites/bubble_nothanks.png");
     this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
     generateTextures(this);
   }
@@ -253,7 +252,7 @@ class CabinScene extends Phaser.Scene {
     const seat = this.getSelectedSeat();
     if (!seat || !seat.occ || seat.served) return;
     if (Phaser.Input.Keyboard.JustDown(k.shift)) {
-      if (seat.state === "sleeping" || seat.state === "nothanks") {
+      if (seat.state === "sleeping") {
         seat.served = true;
         this.updateAfterServiceResolution();
       }
@@ -272,11 +271,6 @@ class CabinScene extends Phaser.Scene {
     if (!chosen) return;
     if (seat.state === "sleeping") {
       this.updateScore(SERVICE_POINTS.sleepingWake);
-      this.promptState = null;
-      return;
-    }
-    if (seat.state === "nothanks") {
-      this.updateScore(SERVICE_POINTS.noThanksForce);
       this.promptState = null;
       return;
     }
@@ -759,7 +753,7 @@ class CabinScene extends Phaser.Scene {
   syncCrewPosition() {
     this.crewSprite.setPosition(
       tx(TC.aisle) + TILE / 2,
-      ty(this.playerRow) + TILE / 2,
+      ty(this.playerRow) + TILE,
     );
     if (this.phase === "service" && this.trolley) {
       this.trolley.setPosition(
@@ -789,6 +783,8 @@ class CabinScene extends Phaser.Scene {
 
   syncPassengerBubbles() {
     if (this.phase !== "service") return;
+    const bubbleSize = Math.round(TILE * 0.82);
+    const bubbleSizeActive = Math.round(TILE * 0.9);
     const desired = new Set();
     const d0 = this.bubbleWindowStartDisplay;
     const rows = [9 - d0, 9 - (d0 + 1)].filter((r) => r >= 1 && r <= CABIN_ROWS);
@@ -818,8 +814,9 @@ class CabinScene extends Phaser.Scene {
       const col = this.seatColForSeatIndex(seatIdx);
       const tex = `bubble_${seat.state.split("+")[0]}`;
       const img = this.add
-        .image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 4, tex)
+        .image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 3, tex)
         .setOrigin(0.5, 1)
+        .setDisplaySize(bubbleSize, bubbleSize)
         .setDepth(100);
       this.bubbleByKey[key] = img;
     });
@@ -829,7 +826,10 @@ class CabinScene extends Phaser.Scene {
       const bubble = this.bubbleByKey[key];
       if (!bubble) continue;
       const active = key === this.selectedServiceTarget;
-      bubble.setScale(active ? 1.12 : 1);
+      bubble.setDisplaySize(
+        active ? bubbleSizeActive : bubbleSize,
+        active ? bubbleSizeActive : bubbleSize,
+      );
       bubble.setTint(active ? 0xd6ffad : 0xffffff);
     }
   }
@@ -876,9 +876,9 @@ class CabinScene extends Phaser.Scene {
           if (usesAtlas) {
             this.add
               .image(cx, cy, "passengers", seat.spriteFrame)
-              .setDisplaySize(TILE - 16, TILE - 16);
+              .setDisplaySize(TILE - 20, TILE - 20);
           } else {
-            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 16, TILE - 16);
+            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 20, TILE - 20);
           }
         }
       });
@@ -954,7 +954,7 @@ class CabinScene extends Phaser.Scene {
 
   drawCrew() {
     const cx = tx(this.playerCol) + TILE / 2;
-    const cy = ty(this.playerRow) + TILE / 2;
+    const cy = ty(this.playerRow) + TILE;
     this.crewGender = window.selectedCrew === "male" ? "male" : "female";
     const prefix = this.crewGender === "male" ? "male-crew-" : "female-crew-";
     this.crewTexturePrefix = prefix;

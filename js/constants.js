@@ -98,7 +98,6 @@ const SERVICE_POINTS = {
   combo: 20,
   wrongItem: -10,
   sleepingWake: -15,
-  noThanksForce: -10,
 };
 
 const SCORE_RULES = {
@@ -123,7 +122,6 @@ function buildStatePool(routeKey) {
       "water",
       "wine",
       "sleeping",
-      "nothanks",
     ];
   }
 
@@ -134,7 +132,7 @@ function buildStatePool(routeKey) {
       combos.push(`${drinks[i]}+${route.meals[j]}`);
     }
   }
-  return combos.concat(singles, singles, ["sleeping", "nothanks"]);
+  return combos.concat(singles, singles, ["sleeping"]);
 }
 
 function createRng(seed) {
