@@ -32,6 +32,8 @@ const TC = {
 const SEAT_COLS_LEFT = [TC.seatA, TC.seatB, TC.seatC];
 const SEAT_COLS_RIGHT = [TC.seatD, TC.seatE, TC.seatF];
 const CABIN_ROWS = 8;
+const PASSENGER_ARCHETYPES = ["intern", "bizlady", "tourist", "elderly", "backpacker"];
+const PASSENGER_VARIATIONS = ["a", "b", "c"];
 
 const C = {
   bg: 0x111111,
@@ -164,9 +166,13 @@ function buildPaxMap(routeKey) {
     const occupied = new Set(indices.slice(0, total));
     map[rowNum] = Array.from({ length: 6 }, (_, seatIdx) => {
       const occ = occupied.has(seatIdx);
+      const archetype =
+        PASSENGER_ARCHETYPES[rng.ri(0, PASSENGER_ARCHETYPES.length - 1)];
+      const variation =
+        PASSENGER_VARIATIONS[rng.ri(0, PASSENGER_VARIATIONS.length - 1)];
       return {
         occ,
-        v: rng.ri(0, 3),
+        spriteFrame: `pax-${archetype}-${variation}`,
         state: occ ? pool[rng.ri(0, pool.length - 1)] : null,
         served: false,
         hasCup: false,

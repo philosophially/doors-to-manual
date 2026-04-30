@@ -8,11 +8,11 @@ class CharacterSelectScene extends Phaser.Scene {
 
   preload() {
     // Only the south-facing previews needed for this screen; cabin loads the rest.
-    this.load.image(
-      "female-crew-south",
-      "sprites/female-crew-south.png",
-    );
-    this.load.image("male-crew-south", "sprites/male-crew-south.png");
+    ["female-crew", "male-crew"].forEach((g) => {
+      ["south", "north", "east", "west"].forEach((d) => {
+        this.load.image(`${g}-${d}`, `sprites/${g}-${d}.png`);
+      });
+    });
   }
 
   create() {

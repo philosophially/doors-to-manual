@@ -7,18 +7,12 @@ class CabinScene extends Phaser.Scene {
   }
 
   preload() {
-    const dirs = ["south", "north", "east", "west"];
-    for (let i = 0; i < dirs.length; i++) {
-      const d = dirs[i];
-      this.load.image(`female-crew-${d}`, `sprites/female-crew-${d}.png`);
-      this.load.image(`male-crew-${d}`, `sprites/male-crew-${d}.png`);
-    }
-    for (let v = 0; v < 4; v++) {
-      for (let i = 0; i < dirs.length; i++) {
-        const d = dirs[i];
-        this.load.image(`pax-${v}-${d}`, `sprites/pax-${v}-${d}.png`);
-      }
-    }
+    ["female-crew", "male-crew"].forEach((g) => {
+      ["south", "north", "east", "west"].forEach((d) => {
+        this.load.image(`${g}-${d}`, `sprites/${g}-${d}.png`);
+      });
+    });
+    this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
     generateTextures(this);
   }
 
@@ -119,18 +113,24 @@ class CabinScene extends Phaser.Scene {
       makeFallback(`female-crew-${dirs[i]}`, 0x00ff7f);
       makeFallback(`male-crew-${dirs[i]}`, 0x44aaff);
     }
-    for (let v = 0; v < 4; v++) {
-      for (let i = 0; i < dirs.length; i++) {
-        const key = `pax-${v}-${dirs[i]}`;
-        if (!this.textures.exists(key)) {
-          const g = this.make.graphics({ x: 0, y: 0, add: false });
-          g.fillStyle(0x63708a + v * 0x080808, 1);
-          g.fillRect(10, 18, 28, 24);
-          g.fillStyle(0xe0bd9a, 1);
-          g.fillRect(14, 6, 20, 12);
-          g.generateTexture(key, 48, 48);
-          g.destroy();
-        }
+    if (!this.textures.exists("passengers")) {
+      const fallbackFrames = [
+        "pax-intern-a",
+        "pax-bizlady-a",
+        "pax-tourist-a",
+        "pax-elderly-a",
+        "pax-backpacker-a",
+      ];
+      for (let i = 0; i < fallbackFrames.length; i++) {
+        const key = fallbackFrames[i];
+        if (this.textures.exists(key)) continue;
+        const g = this.make.graphics({ x: 0, y: 0, add: false });
+        g.fillStyle(0x63708a + i * 0x060606, 1);
+        g.fillRect(10, 18, 28, 24);
+        g.fillStyle(0xe0bd9a, 1);
+        g.fillRect(14, 6, 20, 12);
+        g.generateTexture(key, 48, 48);
+        g.destroy();
       }
     }
   }
@@ -153,7 +153,7 @@ class CabinScene extends Phaser.Scene {
     let moved = false;
     if (moveUp && this.playerRow > TR.galley) {
       this.playerRow -= 1;
-      this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+      this.setCrewDirection("north");
       moved = true;
     }
     if (moveDown && this.playerRow < TR.cabin + 7) {
@@ -163,9 +163,9 @@ class CabinScene extends Phaser.Scene {
         this.phase === "collection" ||
         this.phase === "callbutton"
       ) {
-        this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+        this.setCrewDirection("north");
       } else {
-        this.crewSprite.setTexture(`${this.crewTexturePrefix}south`);
+        this.setCrewDirection("south");
       }
       moved = true;
     }
@@ -189,7 +189,7 @@ class CabinScene extends Phaser.Scene {
     const k = this.keyMap;
     if (Phaser.Input.Keyboard.JustDown(k.a)) {
       this.facing = "west";
-      this.crewSprite.setTexture(`${this.crewTexturePrefix}west`);
+      this.setCrewDirection("west");
       if (this.phase === "service") {
         this.serviceSideChosen = true;
         this.selectedServiceTarget = null;
@@ -200,7 +200,7 @@ class CabinScene extends Phaser.Scene {
     }
     if (Phaser.Input.Keyboard.JustDown(k.d)) {
       this.facing = "east";
-      this.crewSprite.setTexture(`${this.crewTexturePrefix}east`);
+      this.setCrewDirection("east");
       if (this.phase === "service") {
         this.serviceSideChosen = true;
         this.selectedServiceTarget = null;
@@ -515,7 +515,7 @@ class CabinScene extends Phaser.Scene {
     this.setPhase("service");
     this.startTimer();
     this.serviceEntryComplete = false;
-    this.crewSprite.setTexture(`${this.crewTexturePrefix}north`);
+    this.setCrewDirection("north");
     this.tweens.add({
       targets: this.crewSprite,
       y: ty(TR.galley + 1) + TILE / 2,
@@ -861,7 +861,16 @@ class CabinScene extends Phaser.Scene {
         const seat = this.paxMap[rowNum][seatIdx];
         seatBg.fillRect(tx(col) + 2, ty(tileRow) + 2, TILE - 4, TILE - 4);
         if (seat.occ) {
-          this.add.image(cx, cy, `pax-${seat.v}-south`).setDisplaySize(TILE - 8, TILE - 8);
+          const usesAtlas =
+            this.textures.exists("passengers") &&
+            this.textures.get("passengers").has(seat.spriteFrame);
+          if (usesAtlas) {
+            this.add
+              .image(cx, cy, "passengers", seat.spriteFrame)
+              .setDisplaySize(TILE - 8, TILE - 8);
+          } else {
+            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 8, TILE - 8);
+          }
         }
       });
     }
@@ -942,10 +951,15 @@ class CabinScene extends Phaser.Scene {
     this.crewTexturePrefix = prefix;
     this.crewDir = "south";
     this.crewSprite = this.add
-      .image(cx, cy, `${prefix}south`)
-      .setOrigin(0.5, 0.5)
-      .setDisplaySize(TILE - 4, TILE - 4)
+      .image(cx, cy, `${this.crewTexturePrefix}south`)
+      .setOrigin(0.5, 1)
+      .setDisplaySize(TILE, TILE * 1.5)
       .setDepth(20);
+  }
+
+  setCrewDirection(dir) {
+    this.crewDir = dir;
+    this.crewSprite.setTexture(`${this.crewTexturePrefix}${dir}`);
   }
 
   drawLabels() {
