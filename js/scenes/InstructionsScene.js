@@ -46,30 +46,33 @@ class InstructionsScene extends Phaser.Scene {
 
     for (let i = 0; i < routeDefs.length; i++) {
       const def = routeDefs[i];
+      const isLocked = def.key !== "KUL";
       const x = startX + i * (cardW + cardGap);
       const g = this.add.graphics();
       this.add
         .text(x, cardY + 24, def.top, {
           fontFamily: font,
           fontSize: "10px",
-          color: white,
+          color: isLocked ? "#666666" : white,
         })
         .setOrigin(0.5);
       this.add
         .text(x, cardY + 56, def.bottom, {
           fontFamily: font,
           fontSize: "10px",
-          color: yellow,
+          color: isLocked ? "#555555" : yellow,
         })
         .setOrigin(0.5);
-      this.add
-        .zone(x, cardY + cardH / 2, cardW, cardH)
-        .setInteractive({ useHandCursor: true })
-        .on("pointerdown", () => {
-          window.selectedRoute = def.key;
-          drawCards();
-        });
-      cards.push({ def, g, x });
+      if (!isLocked) {
+        this.add
+          .zone(x, cardY + cardH / 2, cardW, cardH)
+          .setInteractive({ useHandCursor: true })
+          .on("pointerdown", () => {
+            window.selectedRoute = def.key;
+            drawCards();
+          });
+      }
+      cards.push({ def, g, x, isLocked });
     }
 
     const drawCards = () => {
@@ -77,9 +80,9 @@ class InstructionsScene extends Phaser.Scene {
         const c = cards[i];
         const active = c.def.key === window.selectedRoute;
         c.g.clear();
-        c.g.fillStyle(navy, 1);
+        c.g.fillStyle(navy, c.isLocked ? 0.4 : 1);
         c.g.fillRoundedRect(c.x - cardW / 2, cardY, cardW, cardH, 3);
-        c.g.lineStyle(2, active ? 0x00ff7f : 0xffffff, 1);
+        c.g.lineStyle(2, active ? 0x00ff7f : c.isLocked ? 0x333333 : 0xffffff, 1);
         c.g.strokeRoundedRect(c.x - cardW / 2, cardY, cardW, cardH, 3);
       }
     };
@@ -125,9 +128,9 @@ class InstructionsScene extends Phaser.Scene {
       "ESC CANCEL",
     ]);
     drawInfoPanel(CW / 2 + 250, "SCORING", [
-      "+10 PER ITEM",
-      "+3 COLLECTION",
-      "+15 CALL HELP",
+      "+10 DRINK SERVED",
+      "+3 CUP COLLECTED",
+      "+1/s EARLY FINISH",
       "MISSES COST POINTS",
     ]);
 

@@ -61,41 +61,17 @@ const ROUTES = {
     key: "KUL",
     label: "SIN → KUL",
     difficulty: "EASY",
-    timerSeconds: 600,
+    timerSeconds: 300,
     drinks: ["oj", "water", "wine"],
     meals: [],
-    turbulence: [{ elapsedSec: 120, severity: "mild", durationSec: 10 }],
+    turbulence: [{ elapsedSec: 90, severity: "mild", durationSec: 10 }],
   },
-  BKK: {
-    key: "BKK",
-    label: "SIN → BKK",
-    difficulty: "MEDIUM",
-    timerSeconds: 600,
-    drinks: ["oj", "water", "wine"],
-    meals: ["padthai", "chickenrice"],
-    turbulence: [
-      { elapsedSec: 120, severity: "mild", durationSec: 10 },
-      { elapsedSec: 240, severity: "mild", durationSec: 10 },
-    ],
-  },
-  NRT: {
-    key: "NRT",
-    label: "SIN → NRT",
-    difficulty: "HARD",
-    timerSeconds: 600,
-    drinks: ["oj", "water", "wine"],
-    meals: ["yakisoba", "fishpotatoes"],
-    turbulence: [
-      { elapsedSec: 120, severity: "moderate", durationSec: 15 },
-      { elapsedSec: 240, severity: "moderate", durationSec: 15 },
-    ],
-  },
+  BKK: { key: "BKK", label: "SIN → BKK", placeholder: true },
+  NRT: { key: "NRT", label: "SIN → NRT", placeholder: true },
 };
 
 const SERVICE_POINTS = {
   drink: 10,
-  meal: 10,
-  combo: 20,
   wrongItem: -10,
   sleepingWake: -15,
 };
@@ -103,36 +79,10 @@ const SERVICE_POINTS = {
 const SCORE_RULES = {
   collectionGood: 3,
   collectionMiss: -5,
-  callCorrect: 15,
-  callWrong: -5,
-  callReset: 5,
-  callUnresolved: -12,
-  turbulenceSpill: -8,
 };
 
-function buildStatePool(routeKey) {
-  const route = ROUTES[routeKey] || ROUTES.KUL;
-  const drinks = route.drinks.slice();
-  if (!route.meals.length) {
-    return [
-      "oj",
-      "water",
-      "wine",
-      "oj",
-      "water",
-      "wine",
-      "sleeping",
-    ];
-  }
-
-  const singles = drinks.concat(route.meals);
-  const combos = [];
-  for (let i = 0; i < drinks.length; i++) {
-    for (let j = 0; j < route.meals.length; j++) {
-      combos.push(`${drinks[i]}+${route.meals[j]}`);
-    }
-  }
-  return combos.concat(singles, singles, ["sleeping"]);
+function buildStatePool() {
+  return ["oj", "water", "wine", "oj", "water", "wine", "sleeping"];
 }
 
 function createRng(seed) {
@@ -149,7 +99,7 @@ function createRng(seed) {
 }
 
 function buildPaxMap(routeKey) {
-  const pool = buildStatePool(routeKey);
+  const pool = buildStatePool();
   const rng = createRng(7331);
   const map = {};
   for (let rowNum = 1; rowNum <= CABIN_ROWS; rowNum++) {
