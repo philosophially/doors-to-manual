@@ -297,12 +297,25 @@
         </div>
 
         <div class="legend-modal__actions">
-          <button type="button" class="legend-modal__close" id="legend-close-btn">
+          <button
+            type="button"
+            class="legend-modal__close"
+            id="legend-close-btn"
+          >
             CLOSE
           </button>
         </div>
       </div>
     </div>
+
+    <!-- Portal: parse URL params on load -->
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        window.portalTrue = params.get("portal") === "true";
+        window.portalRef = params.get("ref") || "";
+      })();
+    </script>
 
     <script src="js/constants.js"></script>
     <script src="js/textures.js"></script>

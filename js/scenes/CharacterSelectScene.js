@@ -70,11 +70,7 @@ class CharacterSelectScene extends Phaser.Scene {
       const r = 6;
       g.fillStyle(0x0f1a2e, 1);
       g.fillRoundedRect(x - boxW / 2, y, boxW, boxH, r);
-      g.lineStyle(
-        2,
-        highlighted ? 0x00ff7f : 0x1b2a4a,
-        1,
-      );
+      g.lineStyle(2, highlighted ? 0x00ff7f : 0x1b2a4a, 1);
       g.strokeRoundedRect(x - boxW / 2, y, boxW, boxH, r);
     };
 
@@ -116,12 +112,7 @@ class CharacterSelectScene extends Phaser.Scene {
     const hitPad = 10;
     const makeZone = (cx, key) => {
       const z = this.add
-        .zone(
-          cx,
-          boxTopY + boxH / 2,
-          boxW + hitPad * 2,
-          boxH + 52 + hitPad,
-        )
+        .zone(cx, boxTopY + boxH / 2, boxW + hitPad * 2, boxH + 52 + hitPad)
         .setOrigin(0.5, 0.5)
         .setInteractive({ useHandCursor: true });
       z.on("pointerover", () => {
@@ -167,6 +158,35 @@ class CharacterSelectScene extends Phaser.Scene {
     const cur = this.registry.get("gamestartSound");
     if (cur && cur.isPlaying) return;
     this.startGamestartMusic();
+
+    // Return portal — only shown if player arrived via the webring
+    if (window.portalTrue) {
+      const returnPortal = this.add
+        .text(CW / 2, hintTopY + 52, "← RETURN TO PORTAL", {
+          fontFamily: '"Press Start 2P"',
+          fontSize: "9px",
+          color: "#00FF7F",
+          backgroundColor: "#0a1a0a",
+          padding: { x: 12, y: 8 },
+        })
+        .setOrigin(0.5)
+        .setInteractive({ useHandCursor: true });
+
+      returnPortal.on("pointerdown", () => {
+        const dest = window.portalRef
+          ? window.portalRef
+          : "https://vibejam.cc/portal/2026";
+        window.location.href = dest;
+      });
+
+      this.tweens.add({
+        targets: returnPortal,
+        alpha: { from: 1, to: 0.5 },
+        duration: 600,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
   }
 
   startGamestartMusic() {
