@@ -38,7 +38,12 @@ class WinScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const rows = await this.loadLeaderboardRows(finalScore);
+    const rows = await Promise.race([
+      this.loadLeaderboardRows(finalScore),
+      new Promise((resolve) =>
+        setTimeout(() => resolve(this.getFallbackLeaderboard(finalScore)), 3500),
+      ),
+    ]);
     this.add
       .text(CW / 2, 228, "LEADERBOARD", {
         fontFamily: '"Press Start 2P"',
@@ -76,8 +81,8 @@ class WinScene extends Phaser.Scene {
     this.cameras.main.fadeIn(900, 0, 0, 0, true);
   }
 
-  async loadLeaderboardRows(finalScore) {
-    const fallback = [
+  getFallbackLeaderboard(finalScore) {
+    return [
       { name: "ALEX", score: 420 },
       { name: "NOVA", score: 380 },
       { name: "RIN", score: 340 },
@@ -86,6 +91,10 @@ class WinScene extends Phaser.Scene {
     ]
       .sort((a, b) => b.score - a.score)
       .slice(0, 5);
+  }
+
+  async loadLeaderboardRows(finalScore) {
+    const fallback = this.getFallbackLeaderboard(finalScore);
     const url = window.SUPABASE_URL;
     const key = window.SUPABASE_ANON_KEY;
     if (!url || !key) {

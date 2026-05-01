@@ -640,13 +640,45 @@ class CabinScene extends Phaser.Scene {
   runLandingPatrol() {
     const moveMs = 380;
     const lookMs = 420;
+    const returnMoveMs = 520;
     const aisleX = tx(TC.aisle) + TILE / 2;
+    this.crewSprite.setAlpha(1);
     this.playerRow = TR.cabin;
     this.crewSprite.setPosition(aisleX, ty(this.playerRow) + TILE);
     this.setCrewDirection("north");
 
+    const fadeCrewOut = () => {
+      this.tweens.add({
+        targets: this.crewSprite,
+        alpha: 0,
+        duration: 1400,
+        ease: "Sine.easeIn",
+      });
+    };
+
+    const runReturn = (rowNum) => {
+      if (rowNum < 1) {
+        fadeCrewOut();
+        return;
+      }
+      this.playerRow = TR.cabin + rowNum - 1;
+      const targetY = ty(this.playerRow) + TILE;
+      this.tweens.add({
+        targets: this.crewSprite,
+        y: targetY,
+        duration: returnMoveMs,
+        ease: "Sine.easeInOut",
+        onComplete: () => {
+          runReturn(rowNum - 1);
+        },
+      });
+    };
+
     const runRow = (rowNum) => {
-      if (rowNum > CABIN_ROWS) return;
+      if (rowNum > CABIN_ROWS) {
+        runReturn(CABIN_ROWS - 1);
+        return;
+      }
       this.playerRow = TR.cabin + rowNum - 1;
       const targetY = ty(this.playerRow) + TILE;
       this.tweens.add({
