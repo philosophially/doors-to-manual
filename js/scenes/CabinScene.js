@@ -702,6 +702,7 @@ class CabinScene extends Phaser.Scene {
         fadeCrewOut();
         return;
       }
+      this.setCrewDirection("north");
       this.playerRow = TR.cabin + rowNum - 1;
       const targetY = ty(this.playerRow) + TILE;
       this.tweens.add({
