@@ -1,6 +1,6 @@
 # DOORS TO MANUAL — Game Context
 Vibe Jam 2026 | Built with Cursor + Phaser.js 3
-Last updated: 30 April 2026 | Build: KUL end-to-end locked
+Last updated: 1 May 2026 | Build: KUL end-to-end + timing / landing / win polish
 
 ---
 
@@ -38,7 +38,7 @@ CharacterSelectScene → InstructionsScene → CabinScene → WinScene
 - `CharacterSelectScene` — crew gender selection (female default). Click → `InstructionsScene`.
 - `InstructionsScene` — route selection (KUL only playable; BKK/NRT greyed out) + controls reference. "CLICK TO CONTINUE" → `CabinScene`.
 - `CabinScene` — all gameplay.
-- `WinScene` — DOORS TO MANUAL win screen, final score, leaderboard, play again.
+- `WinScene` — DOORS TO MANUAL win screen, final score, leaderboard, play again, DOM phase `LANDED`, hint “Welcome to Vibe Jam City.”
 
 ---
 
@@ -47,34 +47,42 @@ Only SIN → KUL is playable. SIN → BKK and SIN → NRT are greyed-out placeho
 
 | Field | Value |
 |---|---|
-| Timer | 5:00 total (300 seconds) |
+| Timer | **4:30** total (**270** seconds) |
 | Drinks | OJ (key 1), Water (key 2), Wine (key 3) |
 | Meals | None |
-| Turbulence | 1× mild at 1:30 elapsed (timer shows 3:30) — 10 seconds, visual only |
+| Turbulence | 1× mild at **1:00** elapsed after service start (timer shows **3:30**) — 10 seconds, visual only |
 
 ---
 
 ## Phase Flow & Timer
-Timer: 5:00 (300s total). Starts when SPACEBAR pressed in idle.
+Timer: **4:30** (**270s** total). HUD seeds **04:30** on new `CabinScene`. Starts when SPACEBAR pressed in idle.
+
+| Segment | Clock (`remainingSec`) | Duration |
+|---|---|---|
+| Service | **270 → 90** | **3:00** |
+| Collection | **90 → 30** (or ends early) | **1:00** timed window |
+| After collection | **continues counting down** through landing | Landing uses whatever time remains (e.g. early collection finish leaves more time before 0) |
 
 | Timer shows | Event |
 |---|---|
-| 5:00 | SPACEBAR → service starts, timer begins |
-| 3:30 | Turbulence (1:30 elapsed) — shake + flashing text 10s, no penalty |
-| 3:00 | Service ends → time bonus if early → popup → collection |
-| 1:30 | Collection ends → time bonus if early → landing |
-| 1:00 | Timer turns red |
-| landing | Camera shake → mp3 plays (~10s) → WinScene |
+| 4:30 | SPACEBAR → service starts, timer begins |
+| 3:30 | Turbulence (**60s** elapsed in service) — shake + flashing text 10s, no penalty |
+| **1:30** | **Service ends** (forced) → time bonus if all served early → popup → **collection** |
+| **0:30** | **Collection ends** (forced) if still in collection → wrap-up popup → **landing** |
+| **1:00** | Timer **`is-warning`** (red / pulsing CSS) — **≤ 60** seconds remaining |
+| After landing audio | **2.5s** delay → **WinScene** (camera fade-in there) |
 
-Phase checkpoints (seconds remaining on timer):
-- `remainingSec === 180 && phase === 'service'` → service ends
-- `remainingSec === 90 && phase === 'collection'` → collection ends
-- `remainingSec <= 60` → is-warning CSS on timer
+Phase checkpoints (seconds **remaining** on timer):
+- `remainingSec === 90 && phase === 'service'` → show service popup → **collection**
+- `remainingSec === 30 && phase === 'collection' && !collectionWrapUpStarted` → **finishCollectionPhase** (forced end)
+- `remainingSec <= 60` → add **`is-warning`** on `#hud-timer`
 
 Early completion:
-- Service: if all passengers served before 3:00 → `bonus = remainingSec - 180` → immediate phase change
-- Collection: if player steps on TR.galley before 1:30 → `bonus = remainingSec - 90` → immediate phase change
-- Phase guards prevent double-triggering in both cases
+- **Service:** all passengers served before **1:30** left → `bonus = max(0, remainingSec - 180)` → popup → collection (`enterCollectionPhase` resets `collectionWrapUpStarted`).
+- **Collection:** all cups collected and all sleeping / skip targets resolved (`allCollectionResolved`) **before** **0:30** left → **finishCollectionPhase** immediately; countdown keeps running into landing.
+- **Guards:** `collectionWrapUpStarted` prevents double collection wrap-up; `winSceneScheduled` prevents double WinScene transition.
+
+**Collection wrap-up** (before landing): ~2.8s centered popup — either *“Great! All cups collected. Time to prepare for landing.”* or *“Need to be quicker next time. Time to prepare for landing.”* Then penalties for missed cups (if any) already applied; time bonus `max(0, remainingSec - 30)` for collection.
 
 ---
 
@@ -83,10 +91,10 @@ Early completion:
 | Phase | Description |
 |---|---|
 | `idle` | Player at TR.cabin+7, facing south. No timer. SPACEBAR starts service. |
-| `service` | Timer running. Aisle tint active. Trolley one tile above player. Serve passengers. Ends at 3:00 or when all served. |
-| `collection` | Trolley parks at galley. Player collects cups. Ends at 1:30 or when player steps on TR.galley. |
-| `landing` | Input blocked. Camera shake. mp3 plays (~10s). WinScene on audio complete. 15s fallback. |
-| `win` | WinScene — DOORS TO MANUAL, final score, leaderboard, play again. |
+| `service` | Timer running. Aisle tint active. Trolley one tile above player. Serve passengers. Ends at **1:30** left on clock or when all served. |
+| `collection` | Trolley at galley. Player collects cups / skips sleeping. Ends at **0:30** left or when **`allCollectionResolved`**. |
+| `landing` | **`PHASE: LANDING`** on `#hud-phase`. Input blocked (`serviceEntryComplete` false). Shake; **landing patrol** (aisle 1→8 west/east per row, then walk back toward row 1, crew **alpha → 0**); MP3 in parallel. **2.5s** after audio **`complete`** → WinScene ( **`winSceneScheduled`** ). **25s** fallback also uses same delayed handoff. |
+| `win` | **WinScene** — `#hud-phase` **PHASE: LANDED**, `#hint-bar` **“Welcome to Vibe Jam City.”**, DOORS TO MANUAL, final score, leaderboard, play again, **`cameras.main.fadeIn`**. |
 
 ---
 
@@ -115,7 +123,7 @@ Early completion:
 | Key | Value | Description |
 |---|---|---|
 | `TR.fuseTop` | 0 | Top fuselage wall |
-| `TR.galley` | 1 | Galley — trolley spawn, early collection exit |
+| `TR.galley` | 1 | Galley — trolley spawn |
 | `TR.cabin` | 2 | First cabin row (HUD Row 8) |
 | `TR.cockpit` | 10 | Cockpit door |
 | `TR.fuseBot` | 11 | Bottom fuselage wall |
@@ -133,8 +141,8 @@ Early completion:
 |---|---|---|
 | Arrow Up / W | idle, service, collection | Move up one tile |
 | Arrow Down / S | idle, service, collection | Move down one tile |
-| A | all | Face west — target seats D, E, F |
-| D | all | Face east — target seats A, B, C |
+| A | all (not landing) | Face west — target seats D, E, F |
+| D | all (not landing) | Face east — target seats A, B, C |
 | Arrow Left / Right | service, collection | Move seat selection within current row |
 | ESC | service, collection | Deselect / close prompt |
 | SPACEBAR | idle | Begin service |
@@ -143,7 +151,7 @@ Early completion:
 | 1 / 2 / 3 | service (prompt active) | OJ / Water / Wine |
 | SHIFT | service | Skip sleeping/nothanks passenger |
 | C | collection | Collect cup from selected seat |
-| SHIFT | collection | Skip (passenger keeping cup, no penalty) |
+| SHIFT | collection | Skip (marks resolved; sleeping / cup skip) |
 
 ---
 
@@ -156,8 +164,8 @@ Early completion:
 | Sleeping passenger woken (SPACEBAR not SHIFT) | -15 |
 | Cup collected | +3 |
 | Cup missed at collection end | -5 |
-| Seconds saved finishing service early | +1/s vs 3:00 checkpoint |
-| Seconds saved finishing collection early | +1/s vs 1:30 checkpoint |
+| Seconds saved finishing service early | +1/s for each second **`remainingSec` above 180** when all served |
+| Seconds saved finishing collection | +1/s for each second **`remainingSec` above 30** when collection phase completes |
 
 ---
 
@@ -179,7 +187,7 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 ---
 
 ## Bubble System
-- Active during service phase only
+- Active during **service** phase only (collection uses its own bubble rules in `syncCollectionBubbles`)
 - 2-row sliding window ahead of player position
 - `this.bubbleByKey` — map of `"{rowNum}-{seatIdx}"` → Phaser Image
 - Bubble textures: `bubble_oj`, `bubble_water`, `bubble_wine`, `bubble_sleeping`
@@ -189,8 +197,7 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 ---
 
 ## Turbulence
-- Fires at elapsedSec 90 (1:30 after service start, timer shows 3:30)
-- `this.time.delayedCall(90000, ...)` from inside `scheduleTurbulence()`
+- Fires at **`elapsedSec: 60`** from `scheduleTurbulence()` after service start (timer shows **3:30** on a **270s** game)
 - Camera shake for 10 seconds, intensity 0.005
 - Flashing text overlay: "WE HIT TURBULENCE (not the song)" — yellow on navy, depth 200
 - Text flashes (alpha tween) and auto-destroys after 10 seconds
@@ -202,6 +209,7 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 - Spawns at TR.galley on first SPACEBAR in idle
 - During service: `trolleyRow = playerRow - 1`, updated by `syncCrewPosition()`
 - Parks at TR.galley when collection phase begins
+- Hidden during landing
 - Depth: 10
 
 ---
@@ -218,10 +226,10 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 ## HUD DOM Elements
 - `#hud-armed` — "DOORS TO ARMED" red → "DOORS TO MANUAL" green on win
 - `#hud-route` — route string (e.g. "SIN → KUL")
-- `#hud-timer` — countdown MM:SS, yellow → red at 1:00 remaining
+- `#hud-timer` — countdown MM:SS, **`is-warning`** at **≤ 01:00** remaining
 - `#hud-score` — "SCORE: 0", neon green, live updates
-- `#hud-phase` — phase label, grey
-- `#hint-bar` — contextual hint text, updates per phase and prompt state
+- `#hud-phase` — **BOARDING / SERVICE / COLLECTION / LANDING** in cabin; **LANDED** only after **WinScene** starts
+- `#hint-bar` — contextual hints in cabin; **WinScene** sets **“Welcome to Vibe Jam City.”**
 - `#legend-open-btn` — "?" button, opens legend modal
 - `#legend-modal` — full-screen controls/scoring reference overlay
 
@@ -236,16 +244,23 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 
 ---
 
+## WinScene & Leaderboard
+- **`loadLeaderboardRows`** (Supabase when `SUPABASE_URL` / `SUPABASE_ANON_KEY` set) can hang on network; **`Promise.race`** with **3.5s** timeout falls back to **`getFallbackLeaderboard(finalScore)`** so leaderboard rows and **Play Again** always appear.
+- After layout: **`this.cameras.main.fadeIn(900, 0, 0, 0, true)`**.
+
+---
+
 ## Key Technical Rules
 - `this.playerCol` is always `TC.aisle` — never changes
 - `this.playerRow` tracks current tile row (integer)
 - `paxMap` seeded (seed 7331) — same layout every session
-- `setPhase(phase)` always updates both `this.phase` and `#hud-phase`
-- `serviceEntryComplete` flag blocks all input during crew tween animation
+- `setPhase(phase)` updates `this.phase` and `#hud-phase` (landing label **LANDING**, not LANDED)
+- `serviceEntryComplete` flag blocks input during crew tween / popups / landing
 - Bubble depth 100, trolley depth 10, crew depth 20
 - All movement is `JustDown` only — no held-key repeat
 - Timer via `this.time.addEvent` (not setInterval)
-- Phase transitions at fixed checkpoints. Exception: service ends early if all served before 3:00; collection ends early if player steps on TR.galley before 1:30.
+- Phase transitions at fixed checkpoints; service/collection also end early per rules above
+- **Landing:** `handleMovement` no-ops if `phase === 'landing'`; patrol tweens drive crew
 - No pause function
 - No ES module syntax — all files plain `<script src>` globals
 - No localStorage or sessionStorage
@@ -253,6 +268,14 @@ State pool (KUL): `["oj", "water", "wine", "oj", "water", "wine", "sleeping"]`
 ---
 
 ## Changelog
+
+### 2026-05-01 — Timing, landing patrol, win polish
+- **Timer:** 5:00 → **4:30** (270s). **Service** forced to **collection** at **1:30** left (**90** remaining). **Collection** forced end at **0:30** left (**30** remaining) or **early** when **`allCollectionResolved`**.
+- **Timer red:** `#hud-timer` **`is-warning`** when **`remainingSec <= 60`** (01:00 left).
+- **Collection:** wrap-up popups (all cups vs not); time bonus **`max(0, remainingSec - 30)`**; **`collectionWrapUpStarted`** guard.
+- **Landing:** HUD **PHASE: LANDING**; automated patrol forward (rows 1–8, west/east), **return** walk toward row 1, crew **fade out** (`alpha` tween); MP3 + **2.5s** delay → **WinScene**; **`winSceneScheduled`**; **25s** fallback.
+- **WinScene:** **PHASE: LANDED**, hint **“Welcome to Vibe Jam City.”**, camera **fadeIn**; leaderboard **`Promise.race`** + **3.5s** timeout + **`getFallbackLeaderboard`** so UI never stalls on fetch.
+- Docs: removed obsolete “collection ends on galley step” note; aligned turbulence copy with **`elapsedSec: 60`**.
 
 ### 2026-04-30 — KUL scope lock
 - Timer: 10:00 → 5:00 (300s). Service ends 3:00, collection ends 1:30.
