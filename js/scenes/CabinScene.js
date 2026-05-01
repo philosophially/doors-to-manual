@@ -18,6 +18,11 @@ class CabinScene extends Phaser.Scene {
     this.load.image("bubble_sleeping", "sprites/bubble_sleeping.png");
     this.load.image("bubble_emptycup", "sprites/bubble_emptycup.png");
     this.load.audio("landing_announcement", "audio/landing_announcement.mp3");
+    this.load.audio("cabin_ambience", "audio/cabin_ambience.mp3");
+    this.load.audio("sfx_correct", "audio/sfx_correct.mp3");
+    this.load.audio("sfx_wrong", "audio/sfx_wrong.mp3");
+    this.load.audio("sfx_collect", "audio/sfx_collect.mp3");
+    this.load.audio("turbulence", "audio/turbulence.mp3");
     this.load.on("loaderror", (file) => {
       console.warn("Asset failed to load:", file.key);
     });
@@ -104,6 +109,22 @@ class CabinScene extends Phaser.Scene {
     this.updateTimerHud();
     this.updateScore(0);
     this.updateHintBar();
+
+    this.soundAmbience = this.cache.audio.exists("cabin_ambience")
+      ? this.sound.add("cabin_ambience", { loop: true, volume: 0.25 })
+      : null;
+    this.sfxCorrect = this.cache.audio.exists("sfx_correct")
+      ? this.sound.add("sfx_correct", { volume: 0.6 })
+      : null;
+    this.sfxWrong = this.cache.audio.exists("sfx_wrong")
+      ? this.sound.add("sfx_wrong", { volume: 0.6 })
+      : null;
+    this.sfxCollect = this.cache.audio.exists("sfx_collect")
+      ? this.sound.add("sfx_collect", { volume: 0.6 })
+      : null;
+    this.turbulenceSound = this.cache.audio.exists("turbulence")
+      ? this.sound.add("turbulence", { volume: 0.55 })
+      : null;
   }
 
   ensureFallbackSprites() {
@@ -285,12 +306,20 @@ class CabinScene extends Phaser.Scene {
     }
 
     if (seat.state === chosen) {
+      if (this.sfxCorrect) {
+        this.sfxCorrect.stop();
+        this.sfxCorrect.play();
+      }
       this.updateScore(SERVICE_POINTS.drink);
       seat.served = true;
       seat.hasCup = true;
       this.promptState = null;
       this.updateAfterServiceResolution();
     } else {
+      if (this.sfxWrong) {
+        this.sfxWrong.stop();
+        this.sfxWrong.play();
+      }
       this.updateScore(SERVICE_POINTS.wrongItem);
       this.promptState = null;
       this.updateHintBar();
@@ -324,6 +353,10 @@ class CabinScene extends Phaser.Scene {
         return;
       }
       if (seat.hasCup && !seat.cupCollected) {
+        if (this.sfxCollect) {
+          this.sfxCollect.stop();
+          this.sfxCollect.play();
+        }
         seat.cupCollected = true;
         this.updateScore(SCORE_RULES.collectionGood);
         this.promptState = null;
@@ -468,7 +501,12 @@ class CabinScene extends Phaser.Scene {
     const el = document.getElementById("hud-phase");
     if (el) el.textContent = `PHASE: ${labels[phase] || phase.toUpperCase()}`;
     if (phase === "service") this.setAisleTint(true);
-    if (phase === "landing") this.setAisleTint(false);
+    if (phase === "landing") {
+      this.setAisleTint(false);
+      if (this.soundAmbience && this.soundAmbience.isPlaying) {
+        this.soundAmbience.stop();
+      }
+    }
     if (phase !== "service") {
       this.fadeOutAllPassengerBubbles();
       this.serviceSideChosen = false;
@@ -484,6 +522,9 @@ class CabinScene extends Phaser.Scene {
         .setDepth(10);
     }
     this.setPhase("service");
+    if (this.soundAmbience && !this.soundAmbience.isPlaying) {
+      this.soundAmbience.play();
+    }
     this.startTimer();
     this.serviceEntryComplete = false;
     this.setCrewDirection("north");
@@ -712,11 +753,15 @@ class CabinScene extends Phaser.Scene {
 
     this.runLandingPatrol();
 
-    const announcement = this.sound.add("landing_announcement", { volume: 1 });
-    announcement.play();
-    announcement.once("complete", () => {
+    if (this.cache.audio.exists("landing_announcement")) {
+      const announcement = this.sound.add("landing_announcement", { volume: 0.6 });
+      announcement.play();
+      announcement.once("complete", () => {
+        this.goToWinSceneAfterLanding();
+      });
+    } else {
       this.goToWinSceneAfterLanding();
-    });
+    }
 
     this.time.delayedCall(25000, () => {
       if (this.scene.isActive("CabinScene")) {
@@ -731,6 +776,15 @@ class CabinScene extends Phaser.Scene {
     this.time.delayedCall(t.elapsedSec * 1000, () => {
       if (this.phase !== "service") return;
       this.cameras.main.shake(t.durationSec * 1000, 0.005);
+      if (this.turbulenceSound) {
+        this.turbulenceSound.stop();
+        this.turbulenceSound.play();
+        this.time.delayedCall(t.durationSec * 1000, () => {
+          if (this.turbulenceSound && this.turbulenceSound.isPlaying) {
+            this.turbulenceSound.stop();
+          }
+        });
+      }
       const txt = this.add.text(CW / 2, CH / 2 - 40,
         "WE HIT TURBULENCE\n(not the song)", {
           fontFamily: '"Press Start 2P"',

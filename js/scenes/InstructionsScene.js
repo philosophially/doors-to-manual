@@ -151,6 +151,7 @@ class InstructionsScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     hint.on("pointerdown", () => {
+      this.stopGamestartMusic();
       this.scene.start("CabinScene");
     });
     this.tweens.add({
@@ -160,5 +161,14 @@ class InstructionsScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
     });
+  }
+
+  stopGamestartMusic() {
+    const s = this.registry.get("gamestartSound");
+    if (s) {
+      s.stop();
+      s.destroy();
+      this.registry.remove("gamestartSound");
+    }
   }
 }

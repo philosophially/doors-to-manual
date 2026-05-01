@@ -13,11 +13,18 @@ class CharacterSelectScene extends Phaser.Scene {
         this.load.image(`${g}-${d}`, `sprites/${g}-${d}.png`);
       });
     });
+    this.load.audio("gamestart", "audio/gamestart.mp3");
+    this.load.on("loaderror", (file) => {
+      console.warn("Asset failed to load:", file.key);
+    });
   }
 
   create() {
     this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
     window.selectedRoute = window.selectedRoute || "KUL";
+
+    // Browsers block audio until a user gesture; retry on first click on this screen.
+    this.input.once("pointerdown", () => this.ensureGamestartMusic());
 
     // Shared vertical rhythm: same gap above boxes (under subtitle) and below labels (above hint)
     const rowGap = 20;
@@ -122,6 +129,7 @@ class CharacterSelectScene extends Phaser.Scene {
         refreshBorders();
       });
       z.on("pointerdown", () => {
+        this.ensureGamestartMusic();
         window.selectedCrew = key;
         this.scene.start("InstructionsScene");
       });
@@ -151,5 +159,26 @@ class CharacterSelectScene extends Phaser.Scene {
       yoyo: true,
       repeat: -1,
     });
+
+    this.ensureGamestartMusic();
+  }
+
+  ensureGamestartMusic() {
+    const cur = this.registry.get("gamestartSound");
+    if (cur && cur.isPlaying) return;
+    this.startGamestartMusic();
+  }
+
+  startGamestartMusic() {
+    const prev = this.registry.get("gamestartSound");
+    if (prev) {
+      prev.stop();
+      prev.destroy();
+      this.registry.remove("gamestartSound");
+    }
+    if (!this.cache.audio.exists("gamestart")) return;
+    const s = this.sound.add("gamestart", { loop: true, volume: 0.55 });
+    s.play();
+    this.registry.set("gamestartSound", s);
   }
 }
