@@ -152,12 +152,6 @@ class CharacterSelectScene extends Phaser.Scene {
     });
 
     this.ensureGamestartMusic();
-  }
-
-  ensureGamestartMusic() {
-    const cur = this.registry.get("gamestartSound");
-    if (cur && cur.isPlaying) return;
-    this.startGamestartMusic();
 
     // Return portal — only shown if player arrived via the webring
     if (window.portalTrue) {
@@ -187,6 +181,12 @@ class CharacterSelectScene extends Phaser.Scene {
         repeat: -1,
       });
     }
+  }
+
+  ensureGamestartMusic() {
+    const cur = this.registry.get("gamestartSound");
+    if (cur && cur.isPlaying) return;
+    this.startGamestartMusic();
   }
 
   startGamestartMusic() {
