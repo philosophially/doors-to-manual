@@ -154,7 +154,10 @@ class CharacterSelectScene extends Phaser.Scene {
     this.ensureGamestartMusic();
 
     // Return portal — only shown if player arrived via the webring
-    if (window.portalTrue) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isFromPortal = urlParams.get("portal") === "true";
+    const portalRefUrl = urlParams.get("ref") || "";
+    if (isFromPortal) {
       const returnPortal = this.add
         .text(CW / 2, hintTopY + 52, "← RETURN TO PORTAL", {
           fontFamily: '"Press Start 2P"',
@@ -167,8 +170,8 @@ class CharacterSelectScene extends Phaser.Scene {
         .setInteractive({ useHandCursor: true });
 
       returnPortal.on("pointerdown", () => {
-        const dest = window.portalRef
-          ? window.portalRef
+        const dest = portalRefUrl
+          ? portalRefUrl
           : "https://vibejam.cc/portal/2026";
         window.location.href = dest;
       });
