@@ -38,12 +38,50 @@ class WinScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    const rows = await Promise.race([
-      this.loadLeaderboardRows(finalScore),
-      new Promise((resolve) =>
-        setTimeout(() => resolve(this.getFallbackLeaderboard(finalScore)), 3500),
-      ),
-    ]);
+    const restartToStart = () => {
+      if (!this.scene.isActive("WinScene")) return;
+      this.scene.start("CharacterSelectScene");
+    };
+
+    const playAgain = this.add
+      .text(CW / 2, CH - 56, "PLAY AGAIN", {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "12px",
+        color: "#00FF7F",
+        backgroundColor: "#10251a",
+        padding: { x: 14, y: 10 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    playAgain.on("pointerdown", restartToStart);
+    playAgain.on("pointerup", restartToStart);
+
+    // Wider hit target avoids missed clicks on scaled pixel text.
+    const playAgainZone = this.add
+      .zone(CW / 2, CH - 56, 260, 64)
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+    playAgainZone.on("pointerdown", restartToStart);
+    playAgainZone.on("pointerup", restartToStart);
+
+    this.input.keyboard.on("keydown-ENTER", restartToStart);
+    this.input.keyboard.on("keydown-SPACE", restartToStart);
+
+    let rows = this.getFallbackLeaderboard(finalScore);
+    try {
+      const loadedRows = await Promise.race([
+        this.loadLeaderboardRows(finalScore),
+        new Promise((resolve) =>
+          setTimeout(() => resolve(this.getFallbackLeaderboard(finalScore)), 3500),
+        ),
+      ]);
+      if (Array.isArray(loadedRows) && loadedRows.length) {
+        rows = loadedRows;
+      }
+    } catch (e) {
+      rows = this.getFallbackLeaderboard(finalScore);
+    }
+
     this.add
       .text(CW / 2, 228, "LEADERBOARD", {
         fontFamily: '"Press Start 2P"',
@@ -65,18 +103,6 @@ class WinScene extends Phaser.Scene {
         )
         .setOrigin(0.5);
     }
-
-    const playAgain = this.add
-      .text(CW / 2, CH - 56, "PLAY AGAIN", {
-        fontFamily: '"Press Start 2P"',
-        fontSize: "12px",
-        color: "#00FF7F",
-        backgroundColor: "#10251a",
-        padding: { x: 14, y: 10 },
-      })
-      .setOrigin(0.5)
-      .setInteractive({ useHandCursor: true });
-    playAgain.on("pointerdown", () => this.scene.start("CharacterSelectScene"));
 
     this.cameras.main.fadeIn(900, 0, 0, 0, true);
   }

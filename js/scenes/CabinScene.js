@@ -669,10 +669,10 @@ class CabinScene extends Phaser.Scene {
     });
   }
 
-  goToWinSceneAfterLanding() {
+  goToWinSceneAfterLanding(delayMs = 0) {
     if (this.winSceneScheduled) return;
     this.winSceneScheduled = true;
-    this.time.delayedCall(2500, () => {
+    this.time.delayedCall(delayMs, () => {
       if (this.scene.isActive("CabinScene")) {
         this.scene.start("WinScene", { score: this.score });
       }
@@ -757,12 +757,13 @@ class CabinScene extends Phaser.Scene {
 
     const playSeatbeltChimeThenWin = () => {
       if (!this.cache.audio.exists("sfx_seatbelt_chime")) {
-        this.goToWinSceneAfterLanding();
+        this.goToWinSceneAfterLanding(1000);
         return;
       }
       const chime = this.sound.add("sfx_seatbelt_chime", { volume: 0.6 });
       chime.once("complete", () => {
-        this.goToWinSceneAfterLanding();
+        // Win scene should begin 1s after seatbelt chime ends.
+        this.goToWinSceneAfterLanding(1000);
       });
       chime.play();
     };
@@ -779,7 +780,7 @@ class CabinScene extends Phaser.Scene {
 
     this.time.delayedCall(25000, () => {
       if (this.scene.isActive("CabinScene")) {
-        this.goToWinSceneAfterLanding();
+        this.goToWinSceneAfterLanding(0);
       }
     });
   }
