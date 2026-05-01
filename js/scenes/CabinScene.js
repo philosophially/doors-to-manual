@@ -55,7 +55,7 @@ class CabinScene extends Phaser.Scene {
     const timerEl = document.getElementById("hud-timer");
     if (timerEl) {
       timerEl.classList.remove("is-warning");
-      timerEl.textContent = "04:30";
+      timerEl.textContent = "04:00";
     }
     const scoreEl = document.getElementById("hud-score");
     if (scoreEl) scoreEl.textContent = "SCORE: 0";
@@ -462,8 +462,10 @@ class CabinScene extends Phaser.Scene {
     this.updateHintBar();
 
     if (this.allServiceResolved() && this.phase === "service") {
-      const bonus = Math.max(0, this.remainingSec - 180);
+      const bonus = Math.max(0, this.remainingSec - 100);
       if (bonus > 0) this.updateScore(bonus);
+      this.remainingSec = 100;
+      this.updateTimerHud();
       this.showServicePopup();
       this.enterCollectionPhase();
     }
@@ -565,7 +567,7 @@ class CabinScene extends Phaser.Scene {
       const timerEl = document.getElementById("hud-timer");
       if (timerEl) timerEl.classList.add("is-warning");
     }
-    if (this.remainingSec === 90 && this.phase === "service") {
+    if (this.remainingSec === 100 && this.phase === "service") {
       this.showServicePopup();
       this.enterCollectionPhase();
     }
