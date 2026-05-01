@@ -22,6 +22,7 @@ class CabinScene extends Phaser.Scene {
     this.load.audio("sfx_correct", "audio/sfx_correct.mp3");
     this.load.audio("sfx_wrong", "audio/sfx_wrong.mp3");
     this.load.audio("sfx_collect", "audio/sfx_collect.mp3");
+    this.load.audio("sfx_seatbelt_chime", "audio/sfx_seatbelt_chime.mp3");
     this.load.audio("turbulence", "audio/turbulence.mp3");
     this.load.on("loaderror", (file) => {
       console.warn("Asset failed to load:", file.key);
@@ -754,14 +755,26 @@ class CabinScene extends Phaser.Scene {
 
     this.runLandingPatrol();
 
+    const playSeatbeltChimeThenWin = () => {
+      if (!this.cache.audio.exists("sfx_seatbelt_chime")) {
+        this.goToWinSceneAfterLanding();
+        return;
+      }
+      const chime = this.sound.add("sfx_seatbelt_chime", { volume: 0.6 });
+      chime.once("complete", () => {
+        this.goToWinSceneAfterLanding();
+      });
+      chime.play();
+    };
+
     if (this.cache.audio.exists("landing_announcement")) {
       const announcement = this.sound.add("landing_announcement", { volume: 0.6 });
       announcement.play();
       announcement.once("complete", () => {
-        this.goToWinSceneAfterLanding();
+        playSeatbeltChimeThenWin();
       });
     } else {
-      this.goToWinSceneAfterLanding();
+      playSeatbeltChimeThenWin();
     }
 
     this.time.delayedCall(25000, () => {
