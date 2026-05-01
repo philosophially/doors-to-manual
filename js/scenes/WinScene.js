@@ -3,13 +3,6 @@ class WinScene extends Phaser.Scene {
     super({ key: "WinScene" });
   }
 
-  preload() {
-    this.load.audio("sfx_seatbelt_chime", "audio/sfx_seatbelt_chime.mp3");
-    this.load.on("loaderror", (file) => {
-      console.warn("Asset failed to load:", file.key);
-    });
-  }
-
   async create(data) {
     const finalScore = data && typeof data.score === "number" ? data.score : 0;
     const phaseEl = document.getElementById("hud-phase");
@@ -23,7 +16,6 @@ class WinScene extends Phaser.Scene {
     }
 
     this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
-    this.playSeatbeltChimeTwice();
     this.add
       .text(CW / 2, 86, "Ladies and Gentlemen, we have safely landed.", {
         fontFamily: '"Press Start 2P"',
@@ -87,21 +79,6 @@ class WinScene extends Phaser.Scene {
     playAgain.on("pointerdown", () => this.scene.start("CharacterSelectScene"));
 
     this.cameras.main.fadeIn(900, 0, 0, 0, true);
-  }
-
-  playSeatbeltChimeTwice() {
-    if (!this.cache.audio.exists("sfx_seatbelt_chime")) return;
-    const chime = this.sound.add("sfx_seatbelt_chime", { volume: 0.6 });
-    let remaining = 2;
-    const playNext = () => {
-      if (remaining <= 0) return;
-      remaining -= 1;
-      chime.play();
-    };
-    chime.on("complete", () => {
-      if (remaining > 0) playNext();
-    });
-    playNext();
   }
 
   getFallbackLeaderboard(finalScore) {
