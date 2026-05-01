@@ -43,13 +43,13 @@ class CabinScene extends Phaser.Scene {
     // FIX — Issue 3: Reset all persistent DOM HUD elements on every new game.
     // The #hud-timer "is-warning" CSS class (red/pulsing) is only ever added,
     // never removed — so it carries over into subsequent playthroughs.
-    // We also reset the text content to 05:00 since Phaser scene restarts do
-    // not touch DOM elements outside the canvas.
+    // We also reset the timer label since Phaser scene restarts do not touch
+    // DOM elements outside the canvas.
     // -------------------------------------------------------------------------
     const timerEl = document.getElementById("hud-timer");
     if (timerEl) {
       timerEl.classList.remove("is-warning");
-      timerEl.textContent = "05:00";
+      timerEl.textContent = "04:30";
     }
     const scoreEl = document.getElementById("hud-score");
     if (scoreEl) scoreEl.textContent = "SCORE: 0";
@@ -96,6 +96,8 @@ class CabinScene extends Phaser.Scene {
     });
 
     this.trolley = null;
+    this.collectionWrapUpStarted = false;
+    this.winSceneScheduled = false;
     this.serviceEntryComplete = true;
     this.setPhase("idle");
     this.updateHudMeta();
@@ -153,6 +155,7 @@ class CabinScene extends Phaser.Scene {
   }
 
   handleMovement() {
+    if (this.phase === "landing") return false;
     const k = this.keyMap;
     const moveUp =
       Phaser.Input.Keyboard.JustDown(k.up) ||
@@ -326,6 +329,7 @@ class CabinScene extends Phaser.Scene {
         this.promptState = null;
         this.updateHintBar();
         this.syncCollectionBubbles();
+        this.tryCompleteCollectionEarly();
       }
       return;
     }
@@ -335,6 +339,7 @@ class CabinScene extends Phaser.Scene {
       this.promptState = null;
       this.updateHintBar();
       this.syncCollectionBubbles();
+      this.tryCompleteCollectionEarly();
     }
   }
 
@@ -454,15 +459,11 @@ class CabinScene extends Phaser.Scene {
 
   setPhase(phase) {
     this.phase = phase;
-    // -------------------------------------------------------------------------
-    // FIX — Issue 2: "landed" maps to "LANDED" so the bottom HUD shows the
-    // correct final state on the WinScene screen.
-    // -------------------------------------------------------------------------
     const labels = {
       idle: "BOARDING",
       service: "SERVICE",
       collection: "COLLECTION",
-      landing: "LANDED",
+      landing: "LANDING",
     };
     const el = document.getElementById("hud-phase");
     if (el) el.textContent = `PHASE: ${labels[phase] || phase.toUpperCase()}`;
@@ -522,11 +523,15 @@ class CabinScene extends Phaser.Scene {
       const timerEl = document.getElementById("hud-timer");
       if (timerEl) timerEl.classList.add("is-warning");
     }
-    if (this.remainingSec === 120 && this.phase === "service") {
+    if (this.remainingSec === 90 && this.phase === "service") {
       this.showServicePopup();
       this.enterCollectionPhase();
     }
-    if (this.remainingSec === 30 && this.phase === "collection") {
+    if (
+      this.remainingSec === 30 &&
+      this.phase === "collection" &&
+      !this.collectionWrapUpStarted
+    ) {
       this.finishCollectionPhase();
     }
   }
@@ -556,6 +561,7 @@ class CabinScene extends Phaser.Scene {
   }
 
   enterCollectionPhase() {
+    this.collectionWrapUpStarted = false;
     this.selectedSeatIdx = null;
     this.promptState = null;
     if (this.trolley)
@@ -564,12 +570,32 @@ class CabinScene extends Phaser.Scene {
     this.syncCollectionBubbles();
   }
 
+  allCollectionResolved() {
+    for (let r = 1; r <= CABIN_ROWS; r++) {
+      for (let s = 0; s < 6; s++) {
+        const seat = this.paxMap[r][s];
+        if (!seat.occ) continue;
+        if (seat.hasCup && !seat.cupCollected) return false;
+        if (seat.state === "sleeping" && !seat.cupCollected) return false;
+      }
+    }
+    return true;
+  }
+
+  tryCompleteCollectionEarly() {
+    if (this.phase !== "collection" || this.collectionWrapUpStarted) return;
+    if (this.allCollectionResolved()) this.finishCollectionPhase();
+  }
+
   finishCollectionPhase() {
-    if (this.phase !== "collection") return;
-    // Time bonus: +1 per second saved vs the 1:30 (90s) checkpoint
-    const bonus = Math.max(0, this.remainingSec - 90);
+    if (this.phase !== "collection" || this.collectionWrapUpStarted) return;
+    this.collectionWrapUpStarted = true;
+
+    const allCupsDone = this.allCollectionResolved();
+
+    const bonus = Math.max(0, this.remainingSec - 30);
     if (bonus > 0) this.updateScore(bonus);
-    // Missed cup penalties
+
     for (let r = 1; r <= CABIN_ROWS; r++) {
       for (let s = 0; s < 6; s++) {
         const seat = this.paxMap[r][s];
@@ -578,10 +604,73 @@ class CabinScene extends Phaser.Scene {
         }
       }
     }
-    this.startLandingSequence();
+
+    const txt = allCupsDone
+      ? "Great! All cups collected. Time to prepare for landing."
+      : "Need to be quicker next time. Time to prepare for landing.";
+    const popup = this.add
+      .text(CW / 2, CH / 2, txt, {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "9px",
+        color: "#1b2a4a",
+        backgroundColor: "#f5f0e8",
+        padding: { x: 12, y: 10 },
+        align: "center",
+        wordWrap: { width: 600 },
+      })
+      .setOrigin(0.5)
+      .setDepth(300);
+    this.serviceEntryComplete = false;
+    this.time.delayedCall(2800, () => {
+      popup.destroy();
+      this.startLandingSequence();
+    });
+  }
+
+  goToWinSceneAfterLanding() {
+    if (this.winSceneScheduled) return;
+    this.winSceneScheduled = true;
+    this.time.delayedCall(2500, () => {
+      if (this.scene.isActive("CabinScene")) {
+        this.scene.start("WinScene", { score: this.score });
+      }
+    });
+  }
+
+  runLandingPatrol() {
+    const moveMs = 380;
+    const lookMs = 420;
+    const aisleX = tx(TC.aisle) + TILE / 2;
+    this.playerRow = TR.cabin;
+    this.crewSprite.setPosition(aisleX, ty(this.playerRow) + TILE);
+    this.setCrewDirection("north");
+
+    const runRow = (rowNum) => {
+      if (rowNum > CABIN_ROWS) return;
+      this.playerRow = TR.cabin + rowNum - 1;
+      const targetY = ty(this.playerRow) + TILE;
+      this.tweens.add({
+        targets: this.crewSprite,
+        y: targetY,
+        duration: moveMs,
+        ease: "Sine.easeInOut",
+        onComplete: () => {
+          this.setCrewDirection("west");
+          this.time.delayedCall(lookMs, () => {
+            this.setCrewDirection("east");
+            this.time.delayedCall(lookMs, () => {
+              runRow(rowNum + 1);
+            });
+          });
+        },
+      });
+    };
+
+    runRow(1);
   }
 
   startLandingSequence() {
+    this.winSceneScheduled = false;
     this.serviceEntryComplete = false;
     this.setPhase("landing");
     if (this.trolley) {
@@ -589,16 +678,17 @@ class CabinScene extends Phaser.Scene {
     }
     this.cameras.main.shake(1000, 0.004);
 
+    this.runLandingPatrol();
+
     const announcement = this.sound.add("landing_announcement", { volume: 1 });
     announcement.play();
     announcement.once("complete", () => {
-      this.scene.start("WinScene", { score: this.score });
+      this.goToWinSceneAfterLanding();
     });
 
-    // Fallback: proceed to WinScene if audio never fires "complete"
     this.time.delayedCall(25000, () => {
       if (this.scene.isActive("CabinScene")) {
-        this.scene.start("WinScene", { score: this.score });
+        this.goToWinSceneAfterLanding();
       }
     });
   }

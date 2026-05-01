@@ -61,7 +61,7 @@ const ROUTES = {
     key: "KUL",
     label: "SIN → KUL",
     difficulty: "EASY",
-    timerSeconds: 300,
+    timerSeconds: 270,
     drinks: ["oj", "water", "wine"],
     meals: [],
     turbulence: [{ elapsedSec: 60, severity: "mild", durationSec: 10 }],
