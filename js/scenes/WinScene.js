@@ -64,6 +64,31 @@ class WinScene extends Phaser.Scene {
     playAgainZone.on("pointerdown", restartToStart);
     playAgainZone.on("pointerup", restartToStart);
 
+    // Exit portal — always visible on win screen
+    const exitPortal = this.add
+      .text(CW / 2, CH - 100, "🌀 VIBE JAM PORTAL →", {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "9px",
+        color: "#00FF7F",
+        backgroundColor: "#0a1a0a",
+        padding: { x: 12, y: 8 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true });
+
+    exitPortal.on("pointerdown", () => {
+      window.location.href =
+        "https://vibejam.cc/portal/2026?ref=doors-to-manual.netlify.app";
+    });
+
+    this.tweens.add({
+      targets: exitPortal,
+      alpha: { from: 1, to: 0.5 },
+      duration: 600,
+      yoyo: true,
+      repeat: -1,
+    });
+
     this.input.keyboard.on("keydown-ENTER", restartToStart);
     this.input.keyboard.on("keydown-SPACE", restartToStart);
 
@@ -72,7 +97,10 @@ class WinScene extends Phaser.Scene {
       const loadedRows = await Promise.race([
         this.loadLeaderboardRows(finalScore),
         new Promise((resolve) =>
-          setTimeout(() => resolve(this.getFallbackLeaderboard(finalScore)), 3500),
+          setTimeout(
+            () => resolve(this.getFallbackLeaderboard(finalScore)),
+            3500,
+          ),
         ),
       ]);
       if (Array.isArray(loadedRows) && loadedRows.length) {
