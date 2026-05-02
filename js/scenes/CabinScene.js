@@ -731,7 +731,16 @@ class CabinScene extends Phaser.Scene {
 
     const runReturn = (rowNum) => {
       if (rowNum < 1) {
-        fadeCrewOut();
+        this.setCrewDirection("north");
+        this.playerRow = TR.galley;
+        const galleyY = ty(this.playerRow) + TILE;
+        this.tweens.add({
+          targets: this.crewSprite,
+          y: galleyY,
+          duration: returnMoveMs,
+          ease: "Sine.easeInOut",
+          onComplete: () => fadeCrewOut(),
+        });
         return;
       }
       this.setCrewDirection("north");

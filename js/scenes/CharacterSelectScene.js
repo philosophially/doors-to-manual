@@ -20,6 +20,23 @@ class CharacterSelectScene extends Phaser.Scene {
   }
 
   create() {
+    const timerEl = document.getElementById("hud-timer");
+    if (timerEl) {
+      timerEl.classList.remove("is-warning");
+      timerEl.textContent = "04:00";
+    }
+    const scoreEl = document.getElementById("hud-score");
+    if (scoreEl) scoreEl.textContent = "SCORE: 0";
+    const phaseEl = document.getElementById("hud-phase");
+    if (phaseEl) phaseEl.textContent = "PHASE: BOARDING";
+    const hintEl = document.getElementById("hint-bar");
+    if (hintEl) hintEl.textContent = "SPACEBAR — Begin service";
+    const armedEl = document.getElementById("hud-armed");
+    if (armedEl) {
+      armedEl.textContent = "DOORS TO ARMED";
+      armedEl.style.color = "#ff4444";
+    }
+
     this.add.rectangle(CW / 2, CH / 2, CW, CH, 0x000000);
     window.selectedRoute = window.selectedRoute || "KUL";
 
