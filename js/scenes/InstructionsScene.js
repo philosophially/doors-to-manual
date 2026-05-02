@@ -82,7 +82,11 @@ class InstructionsScene extends Phaser.Scene {
         c.g.clear();
         c.g.fillStyle(navy, c.isLocked ? 0.4 : 1);
         c.g.fillRoundedRect(c.x - cardW / 2, cardY, cardW, cardH, 3);
-        c.g.lineStyle(2, active ? 0x00ff7f : c.isLocked ? 0x333333 : 0xffffff, 1);
+        c.g.lineStyle(
+          2,
+          active ? 0x00ff7f : c.isLocked ? 0x333333 : 0xffffff,
+          1,
+        );
         c.g.strokeRoundedRect(c.x - cardW / 2, cardY, cardW, cardH, 3);
       }
     };
@@ -135,11 +139,16 @@ class InstructionsScene extends Phaser.Scene {
     ]);
 
     this.add
-      .text(CW / 2, 460, "Serve every passenger before descent. Land cleanly and the captain calls it.", {
-        fontFamily: font,
-        fontSize: "8px",
-        color: "#D5D8E6",
-      })
+      .text(
+        CW / 2,
+        460,
+        "Serve every passenger before descent. Land cleanly and the captain calls it.",
+        {
+          fontFamily: font,
+          fontSize: "8px",
+          color: "#D5D8E6",
+        },
+      )
       .setOrigin(0.5);
 
     const hint = this.add
@@ -151,7 +160,6 @@ class InstructionsScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setInteractive({ useHandCursor: true });
     hint.on("pointerdown", () => {
-      this.stopGamestartMusic();
       this.scene.start("CabinScene");
     });
     this.tweens.add({

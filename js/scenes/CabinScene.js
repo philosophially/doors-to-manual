@@ -27,7 +27,11 @@ class CabinScene extends Phaser.Scene {
     this.load.on("loaderror", (file) => {
       console.warn("Asset failed to load:", file.key);
     });
-    this.load.atlas("passengers", "sprites/passengers.png", "sprites/passengers.json");
+    this.load.atlas(
+      "passengers",
+      "sprites/passengers.png",
+      "sprites/passengers.json",
+    );
     generateTextures(this);
   }
 
@@ -193,10 +197,7 @@ class CabinScene extends Phaser.Scene {
     }
     if (moveDown && this.playerRow <= TR.cabin + 7) {
       this.playerRow += 1;
-      if (
-        this.phase === "service" ||
-        this.phase === "collection"
-      ) {
+      if (this.phase === "service" || this.phase === "collection") {
         this.setCrewDirection("north");
       } else {
         this.setCrewDirection("south");
@@ -268,8 +269,14 @@ class CabinScene extends Phaser.Scene {
       this.startServicePhase();
       return;
     }
-    if (this.phase === "service") { this.handleServiceInputs(); return; }
-    if (this.phase === "collection") { this.handleCollectionInputs(); return; }
+    if (this.phase === "service") {
+      this.handleServiceInputs();
+      return;
+    }
+    if (this.phase === "collection") {
+      this.handleCollectionInputs();
+      return;
+    }
   }
 
   handleServiceInputs() {
@@ -385,7 +392,9 @@ class CabinScene extends Phaser.Scene {
     return null;
   }
 
-  getCurrentRowNum() { return this.playerRow - TR.cabin + 1; }
+  getCurrentRowNum() {
+    return this.playerRow - TR.cabin + 1;
+  }
 
   seatColForSeatIndex(seatIdx) {
     return [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT][seatIdx];
@@ -427,7 +436,10 @@ class CabinScene extends Phaser.Scene {
       }
       return;
     }
-    const current = this.phase === "service" ? this.selectedServiceTarget : this.selectedSeatIdx;
+    const current =
+      this.phase === "service"
+        ? this.selectedServiceTarget
+        : this.selectedSeatIdx;
     let i = seats.indexOf(current);
     if (i < 0) i = 0;
     i = Phaser.Math.Wrap(i + delta, 0, seats.length);
@@ -446,18 +458,21 @@ class CabinScene extends Phaser.Scene {
       const [rowText, seatText] = this.selectedServiceTarget.split("-");
       const rowNum = Number(rowText);
       const seatIdx = Number(seatText);
-      if (rowNum < 1 || rowNum > CABIN_ROWS || seatIdx < 0 || seatIdx > 5) return null;
+      if (rowNum < 1 || rowNum > CABIN_ROWS || seatIdx < 0 || seatIdx > 5)
+        return null;
       return this.paxMap[rowNum][seatIdx];
     }
     const rowNum = this.getCurrentRowNum();
-    if (rowNum < 1 || rowNum > CABIN_ROWS || this.selectedSeatIdx == null) return null;
+    if (rowNum < 1 || rowNum > CABIN_ROWS || this.selectedSeatIdx == null)
+      return null;
     return this.paxMap[rowNum][this.selectedSeatIdx];
   }
 
   updateAfterServiceResolution() {
     this.checkBubbleWindowAdvance();
     const liveTargets = this.getSelectableServiceTargets();
-    if (!liveTargets.includes(this.selectedServiceTarget)) this.selectedServiceTarget = null;
+    if (!liveTargets.includes(this.selectedServiceTarget))
+      this.selectedServiceTarget = null;
     this.syncPassengerBubbles();
     this.updateHintBar();
 
@@ -479,7 +494,8 @@ class CabinScene extends Phaser.Scene {
     for (let s = 0; s < side.length; s++) {
       const seatIdx = side[s];
       const seat = this.paxMap[rowNum][seatIdx];
-      if (seat.occ && !seat.served && seat.state) targets.push(`${rowNum}-${seatIdx}`);
+      if (seat.occ && !seat.served && seat.state)
+        targets.push(`${rowNum}-${seatIdx}`);
     }
     return targets;
   }
@@ -518,7 +534,17 @@ class CabinScene extends Phaser.Scene {
     this.updateHintBar();
   }
 
+  stopGamestartMusic() {
+    const s = this.registry.get("gamestartSound");
+    if (s) {
+      s.stop();
+      s.destroy();
+      this.registry.remove("gamestartSound");
+    }
+  }
+
   startServicePhase() {
+    this.stopGamestartMusic();
     if (!this.trolley) {
       this.trolley = this.add
         .image(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4, "trolley")
@@ -609,7 +635,10 @@ class CabinScene extends Phaser.Scene {
     this.selectedSeatIdx = null;
     this.promptState = null;
     if (this.trolley)
-      this.trolley.setPosition(tx(TC.aisle) + TILE / 2, ty(TR.galley) + TILE / 2 + 4);
+      this.trolley.setPosition(
+        tx(TC.aisle) + TILE / 2,
+        ty(TR.galley) + TILE / 2 + 4,
+      );
     this.setPhase("collection");
     this.syncCollectionBubbles();
   }
@@ -771,7 +800,9 @@ class CabinScene extends Phaser.Scene {
     };
 
     if (this.cache.audio.exists("landing_announcement")) {
-      const announcement = this.sound.add("landing_announcement", { volume: 0.6 });
+      const announcement = this.sound.add("landing_announcement", {
+        volume: 0.6,
+      });
       announcement.play();
       announcement.once("complete", () => {
         playSeatbeltChimeThenWin();
@@ -802,16 +833,17 @@ class CabinScene extends Phaser.Scene {
           }
         });
       }
-      const txt = this.add.text(CW / 2, CH / 2 - 40,
-        "WE HIT TURBULENCE\n(not the song)", {
+      const txt = this.add
+        .text(CW / 2, CH / 2 - 40, "WE HIT TURBULENCE\n(not the song)", {
           fontFamily: '"Press Start 2P"',
           fontSize: "11px",
           color: "#ffff44",
           backgroundColor: "#1b2a4a",
           padding: { x: 14, y: 10 },
           align: "center",
-        }
-      ).setOrigin(0.5).setDepth(200);
+        })
+        .setOrigin(0.5)
+        .setDepth(200);
       const flashTween = this.tweens.add({
         targets: txt,
         alpha: { from: 1, to: 0 },
@@ -865,13 +897,18 @@ class CabinScene extends Phaser.Scene {
     if (this.phase === "idle") {
       el.textContent = "SPACEBAR — Begin service";
     } else if (this.phase === "service" && this.promptState !== "service") {
-      el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
+      el.textContent =
+        "A / D — Face seats | ← → — Select | SPACEBAR — Serve | SHIFT — Skip";
     } else if (this.phase === "service" && this.promptState === "service") {
       el.textContent = "1 OJ  |  2 WATER  |  3 WINE  |  ESC CANCEL";
-    } else if (this.phase === "collection" && this.promptState === "collection") {
+    } else if (
+      this.phase === "collection" &&
+      this.promptState === "collection"
+    ) {
       el.textContent = "C — Collect  |  SHIFT — Skip  |  ESC — Cancel";
     } else if (this.phase === "collection") {
-      el.textContent = "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
+      el.textContent =
+        "A / D — Face seats | ← → — Select | SPACEBAR — Interact | C — Collect | SHIFT — Skip";
     } else if (this.phase === "landing") {
       el.textContent = "Cabin checked and ready for landing...";
     }
@@ -882,7 +919,10 @@ class CabinScene extends Phaser.Scene {
       tx(TC.aisle) + TILE / 2,
       ty(this.playerRow) + TILE,
     );
-    if ((this.phase === "service" || this.phase === "collection") && this.trolley) {
+    if (
+      (this.phase === "service" || this.phase === "collection") &&
+      this.trolley
+    ) {
       this.trolley.setPosition(
         tx(TC.aisle) + TILE / 2,
         ty(this.playerRow - 1) + TILE / 2 + 4,
@@ -914,12 +954,15 @@ class CabinScene extends Phaser.Scene {
     const bubbleSizeActive = Math.round(TILE * 0.9);
     const desired = new Set();
     const d0 = this.bubbleWindowStartDisplay;
-    const rows = [9 - d0, 9 - (d0 + 1)].filter((r) => r >= 1 && r <= CABIN_ROWS);
+    const rows = [9 - d0, 9 - (d0 + 1)].filter(
+      (r) => r >= 1 && r <= CABIN_ROWS,
+    );
     for (let i = 0; i < rows.length; i++) {
       const rowNum = rows[i];
       for (let seatIdx = 0; seatIdx < 6; seatIdx++) {
         const seat = this.paxMap[rowNum][seatIdx];
-        if (seat.occ && !seat.served && seat.state) desired.add(`${rowNum}-${seatIdx}`);
+        if (seat.occ && !seat.served && seat.state)
+          desired.add(`${rowNum}-${seatIdx}`);
       }
     }
     const keys = Object.keys(this.bubbleByKey);
@@ -929,7 +972,10 @@ class CabinScene extends Phaser.Scene {
         delete this.bubbleByKey[keys[i]];
       }
     }
-    if (this.selectedServiceTarget && !desired.has(this.selectedServiceTarget)) {
+    if (
+      this.selectedServiceTarget &&
+      !desired.has(this.selectedServiceTarget)
+    ) {
       this.selectedServiceTarget = null;
     }
     desired.forEach((key) => {
@@ -971,8 +1017,10 @@ class CabinScene extends Phaser.Scene {
       for (let seatIdx = 0; seatIdx < 6; seatIdx++) {
         const seat = this.paxMap[rowNum][seatIdx];
         if (!seat.occ) continue;
-        if (seat.hasCup && !seat.cupCollected) desired.add(`${rowNum}-${seatIdx}`);
-        else if (seat.state === "sleeping" && !seat.cupCollected) desired.add(`${rowNum}-${seatIdx}`);
+        if (seat.hasCup && !seat.cupCollected)
+          desired.add(`${rowNum}-${seatIdx}`);
+        else if (seat.state === "sleeping" && !seat.cupCollected)
+          desired.add(`${rowNum}-${seatIdx}`);
       }
     }
 
@@ -991,7 +1039,8 @@ class CabinScene extends Phaser.Scene {
       const seatIdx = Number(seatText);
       const seat = this.paxMap[rowNum][seatIdx];
       const col = this.seatColForSeatIndex(seatIdx);
-      const tex = seat.state === "sleeping" ? "bubble_sleeping" : "bubble_emptycup";
+      const tex =
+        seat.state === "sleeping" ? "bubble_sleeping" : "bubble_emptycup";
       const img = this.add
         .image(tx(col) + TILE / 2, ty(TR.cabin + rowNum - 1) + 3, tex)
         .setOrigin(0.5, 1)
@@ -1020,18 +1069,28 @@ class CabinScene extends Phaser.Scene {
 
   drawAisle() {
     for (let r = 0; r < CABIN_ROWS; r++) {
-      this.add.image(tx(TC.aisle) + TILE / 2, ty(TR.cabin + r) + TILE / 2, "aisle_tile");
+      this.add.image(
+        tx(TC.aisle) + TILE / 2,
+        ty(TR.cabin + r) + TILE / 2,
+        "aisle_tile",
+      );
     }
   }
 
   drawFuselage() {
     for (let r = 0; r < GRID_ROWS; r++) {
       this.add.image(tx(TC.fuseLeft) + TILE / 2, ty(r) + TILE / 2, "fuse_wall");
-      this.add.image(tx(TC.fuseRight) + TILE / 2, ty(r) + TILE / 2, "fuse_wall");
+      this.add.image(
+        tx(TC.fuseRight) + TILE / 2,
+        ty(r) + TILE / 2,
+        "fuse_wall",
+      );
     }
     for (let c = 0; c < GRID_COLS; c++) {
       this.add.image(tx(c) + TILE / 2, ty(TR.fuseTop) + TILE / 2, "fuse_wall");
-      this.add.image(tx(c) + TILE / 2, ty(TR.fuseBot) + TILE / 2, "fuse_wall").setFlipY(true);
+      this.add
+        .image(tx(c) + TILE / 2, ty(TR.fuseBot) + TILE / 2, "fuse_wall")
+        .setFlipY(true);
     }
     for (let r = 0; r < CABIN_ROWS; r++) {
       const tileRow = TR.cabin + r;
@@ -1062,7 +1121,9 @@ class CabinScene extends Phaser.Scene {
               .image(cx, cy, "passengers", seat.spriteFrame)
               .setDisplaySize(TILE - 20, TILE - 20);
           } else {
-            this.add.image(cx, cy, "pax-intern-a").setDisplaySize(TILE - 20, TILE - 20);
+            this.add
+              .image(cx, cy, "pax-intern-a")
+              .setDisplaySize(TILE - 20, TILE - 20);
           }
         }
       });
@@ -1071,7 +1132,11 @@ class CabinScene extends Phaser.Scene {
 
   drawCockpit() {
     for (let c = TC.seatA; c <= TC.seatF; c++) {
-      this.add.image(tx(c) + TILE / 2, ty(TR.cockpit) + TILE / 2, "cockpit_fill");
+      this.add.image(
+        tx(c) + TILE / 2,
+        ty(TR.cockpit) + TILE / 2,
+        "cockpit_fill",
+      );
     }
     const g = this.add.graphics();
     const x0 = tx(TC.seatA);
@@ -1095,13 +1160,15 @@ class CabinScene extends Phaser.Scene {
     const doorCy = y0 + h / 2;
     this.add.image(doorCx - 26, doorCy, "porthole").setScale(1);
     this.add.image(doorCx + 26, doorCy, "porthole").setScale(1);
-    this.add.text(x0 + w / 2, y0 + h / 2 + 1, "COCKPIT", {
-      fontFamily: '"Press Start 2P"',
-      fontSize: "7px",
-      color: "#c8e6ff",
-      stroke: "#0a1020",
-      strokeThickness: 3,
-    }).setOrigin(0.5, 0.5);
+    this.add
+      .text(x0 + w / 2, y0 + h / 2 + 1, "COCKPIT", {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "7px",
+        color: "#c8e6ff",
+        stroke: "#0a1020",
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5, 0.5);
   }
 
   drawGalley() {
@@ -1127,13 +1194,15 @@ class CabinScene extends Phaser.Scene {
       g.fillStyle(i % 2 === 0 ? 0x00cc44 : 0xffaa00);
       g.fillRect(lx, lightsY, 4, 4);
     }
-    this.add.text(x0 + w / 2, y0 + 34, "GALLEY", {
-      fontFamily: '"Press Start 2P"',
-      fontSize: "7px",
-      color: "#1b2a4a",
-      stroke: "#e8e8e8",
-      strokeThickness: 2,
-    }).setOrigin(0.5, 0.5);
+    this.add
+      .text(x0 + w / 2, y0 + 34, "GALLEY", {
+        fontFamily: '"Press Start 2P"',
+        fontSize: "7px",
+        color: "#1b2a4a",
+        stroke: "#e8e8e8",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5, 0.5);
   }
 
   drawCrew() {
@@ -1165,7 +1234,9 @@ class CabinScene extends Phaser.Scene {
     for (let r = 0; r < CABIN_ROWS; r++) {
       const tileRow = TR.cabin + r;
       const rowLabel = String(CABIN_ROWS - r);
-      this.add.text(rowLabelX, ty(tileRow) + TILE / 2, rowLabel, labelStyle).setOrigin(0.5);
+      this.add
+        .text(rowLabelX, ty(tileRow) + TILE / 2, rowLabel, labelStyle)
+        .setOrigin(0.5);
     }
     const seatLetters = ["F", "E", "D", "C", "B", "A"];
     const seatCols = [...SEAT_COLS_LEFT, ...SEAT_COLS_RIGHT];
